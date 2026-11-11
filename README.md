@@ -6,8 +6,6 @@
 
 主控端免安装、免账号；手机端只在会话期间开放服务，结束后立即关闭并还原设置。
 
-<img src="docs/screenshot.jpg" width="380" alt="被控端：开始会话后显示访问地址、PIN 和二维码">
-
 ## 功能
 
 - **实时画面**：MediaProjection 采集 + MediaCodec 硬编码 H.264，浏览器通过 MSE / JMuxer 播放
@@ -43,7 +41,7 @@
 1. 打开随手控，确认「Shizuku 授权」显示已授权。
 2. 点「开始会话」，允许屏幕录制。
 3. 手机页面会显示访问地址、6 位 PIN 和二维码。
-4. 主控端用同一 Wi-Fi 打开地址（或另一台手机扫码），输入 PIN 连接。
+4. 主控端用同一 Wi-Fi 打开地址（或另一台手机扫码），输入 PIN 连接。<img src="docs/screenshot.jpg" width="380" alt="被控端：开始会话后显示访问地址、PIN 和二维码">
 
 ## 异地使用
 
