@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与主控页同一套色：浅色界面里只让品牌蓝用在动作与状态上 -->
+    <color name="page_bg">#F4F7FB</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="line">#E6EBF2</color>
+    <color name="line_field">#DCE3EC</color>
+    <color name="text_primary">#14202F</color>
+    <color name="text_secondary">#647286</color>
+    <color name="text_hint">#7C8A9C</color>
+    <color name="brand">#1657FD</color>
+    <color name="brand_soft">#EDF2FB</color>
+    <color name="danger_text">#C9404F</color>
+    <color name="danger_soft">#FDEEF0</color>
+    <color name="ok_text">#06775A</color>
+    <color name="status_idle">#93A1B3</color>
+    <color name="status_warn">#B7791F</color>
+</resources>

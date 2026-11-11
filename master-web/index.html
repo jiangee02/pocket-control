@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=overlays-content">
+<meta name="theme-color" content="#f4f7fb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>随手控</title>
+<link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="favicon-192.png">
+<style>
+  :root{
+    --bg:#f4f7fb; --bg2:#eef3fa;
+    --panel:#ffffff; --panel2:#f7f9fd; --panel3:#edf2f9;
+    --line:#e4eaf3; --line2:#d3ddea;
+    --fg:#16202e; --fg2:#435166; --dim:#647286; --dim2:#5c6a7d;
+    /* 品牌色取自 App 图标：中蓝 → 青。只用于状态、焦点、进度与主操作。 */
+    --brand:#1657fd; --brand2:#2cc6fd;
+    --acc:#1657fd; --warn:#8a4d12; --err:#c9404f;
+    --panelW:clamp(360px,30vw,440px);
+    --chev:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23647286' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    /* 中文界面用系统自带的中文字体：数字/地址才用等宽，避免整页「技术感」过头 */
+    --font:"MiSans","MiSans Latin","HarmonyOS Sans SC","HarmonyOS Sans","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+    --mono:"SF Mono","JetBrains Mono","Cascadia Mono",ui-monospace,Consolas,"Microsoft YaHei",monospace;
+    color-scheme:light;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);
+    font-family:var(--font);
+    overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+  /* 页面内容禁止选中/拖拽，避免拖动画面时选中文字；输入框仍可正常选择，
+     剪贴板按钮、Ctrl+C/V 与 paste 事件都不受影响 */
+  input,textarea,select,.selectable{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default;}
+  ::selection{background:#1657fd2e;color:#16202e;}
+  *::-webkit-scrollbar{width:8px;height:8px;}
+  *::-webkit-scrollbar-thumb{background:#cfd9e6;border-radius:99px;border:2px solid transparent;background-clip:content-box;}
+  *::-webkit-scrollbar-thumb:hover{background:#b6c4d6;border:2px solid transparent;background-clip:content-box;}
+  *::-webkit-scrollbar-track{background:transparent;}
+
+  /* ---------- 控件基线 ---------- */
+  button{font:inherit;font-size:13px;font-weight:550;letter-spacing:.01em;color:var(--fg2);
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 13px;
+    cursor:pointer;user-select:none;
+    transition:background .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,transform .16s ease;}
+  button:active{transform:translateY(1px) scale(.985);}
+  button:disabled{opacity:.5;cursor:default;transform:none;}
+  button.primary{background:var(--brand);border-color:#1657fd;color:#fff;
+    box-shadow:0 8px 20px #16202e1f, inset 0 1px 0 #ffffff2e;}
+  button.danger{background:transparent;border-color:transparent;color:var(--err);}
+  button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{
+    outline:2px solid #1657fd;outline-offset:2px;}
+  input,textarea,select{font:inherit;font-size:13px;color:var(--fg);background:#fff;
+    border:1px solid var(--line2);border-radius:10px;padding:8px 11px;outline:none;
+    caret-color:var(--brand);
+    transition:border-color .16s ease,box-shadow .16s ease;}
+  input::placeholder,textarea::placeholder{color:#5c6a7d;}
+  input:focus,textarea:focus,select:focus{border-color:#1657fd;box-shadow:0 0 0 3px #1657fd1f;}
+  textarea{resize:vertical;line-height:1.7;}
+  select{appearance:none;-webkit-appearance:none;padding-right:28px;
+    background-image:var(--chev);background-repeat:no-repeat;background-position:right 10px center;background-size:10px;}
+  @media (hover:hover){
+    button:hover{background:#eef3fa;border-color:#c9d5e4;color:var(--fg);}
+    button.primary:hover{background:#0f4ce6;border-color:#0f4ce6;color:#fff;}
+    button.danger:hover{background:#fdf1f2;border-color:#f0cfd3;color:#b33745;}
+    #btnFiles:hover{background:#dde8ff;border-color:#b9cfff;color:#0b3fc7;}
+    #keys button:hover{background:#eef3fa;border-color:#c9d5e4;color:var(--fg);}
+  }
+
+  /* ---------- 顶栏 ---------- */
+  #top{position:fixed;top:0;left:0;right:0;z-index:30;
+    height:calc(52px + env(safe-area-inset-top,0px));display:flex;align-items:center;gap:9px;
+    padding:env(safe-area-inset-top,0px) 12px 0 14px;
+    background:#fffffff2;border-bottom:1px solid var(--line);}
+  /* 顶栏底部 2px 品牌渐变：与图标同一条蓝→青，只做一次签名，不加光晕 */
+  #top::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;
+    background:linear-gradient(90deg,#1657fd,#2cc6fd 55%,#1657fd00);opacity:.85;pointer-events:none;}
+  /* 直接用 App 图标本体（favicon-192.png 自带圆角透明边，2x/3x 屏也清晰） */
+  .logo{width:26px;height:26px;flex:none;display:block;
+    filter:drop-shadow(0 3px 7px #16202e26);}
+  #top .title{font-size:14px;font-weight:700;letter-spacing:.02em;white-space:nowrap;margin-right:2px;}
+  #dot{width:8px;height:8px;border-radius:50%;background:#c2ccda;flex:none;
+    transition:background .2s ease,box-shadow .2s ease;box-shadow:inset 0 0 0 1px #ffffff8c;}
+  #dot.on{background:var(--brand2);box-shadow:0 0 0 3px #2cc6fd33;}
+  #dot.err{background:var(--err);box-shadow:0 0 0 3px #c9404f26;}
+  #stats{display:flex;align-items:center;height:26px;padding:4px 9px;flex:none;
+    background:#f5f8fc;border:1px solid var(--line);border-radius:8px;}
+  .stat{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--dim);
+    white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.01em;}
+  .stat:empty{display:none;}
+  #stLat{color:var(--fg);font-size:11.5px;}
+  .stat + .stat::before{content:"";display:inline-block;width:3px;height:3px;border-radius:50%;
+    background:#c2ccda;margin:0 8px 2px 0;vertical-align:middle;}
+  .grow{flex:1;}
+  #qualitySel{flex:none;height:30px;padding:0 26px 0 11px;font-size:12px;font-weight:600;
+    color:var(--fg);background-color:#f7f9fd;border-color:var(--line2);border-radius:8px;cursor:pointer;}
+  #qualitySel:disabled{opacity:.5;cursor:default;}
+  #topBtns{display:flex;align-items:center;gap:6px;flex:none;}
+  #topBtns button{height:30px;padding:0 11px;font-size:12px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+  #topBtns svg.ic{width:13px;height:13px;flex:none;opacity:.9;}
+  #topBtns .lbl{display:inline;}
+  #btnFiles{background:#eaf0ff;border-color:#cfdfff;color:var(--brand);}
+  #btnEnd{color:var(--err);}
+  #btnWin{background:transparent;border-color:transparent;color:var(--dim);}
+  @media (hover:hover){#btnWin:hover{color:var(--fg);background:#eef3fa;}}
+
+  /* ---------- 画面 ---------- */
+  #stage{position:absolute;inset:calc(52px + env(safe-area-inset-top,0px)) 0 calc(62px + env(safe-area-inset-bottom,0px)) 0;
+    background:#0a0f16;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  #video{width:100%;height:100%;object-fit:contain;background:#0a0f16;touch-action:none;pointer-events:none;
+    -webkit-user-drag:none;user-drag:none;}
+  #video::-webkit-media-controls,#video::-webkit-media-controls-enclosure,#video::-webkit-media-controls-overlay-enclosure{display:none!important;}
+  /* 独立窗口入口：桌面端把画面放进一个手机比例的新窗口，窗口可自由拖动缩放；手机主控不需要 */
+  #btnWin{display:none;}
+  /* 透明触控层盖在 video 上：拦截鼠标 hover，避免 Edge 弹出「画中画/增强/翻译音频」工具栏遮挡画面 */
+  #touch{position:absolute;inset:0;z-index:5;touch-action:none;}
+  /* 切画质/首帧加载的过渡提示：盖在黑屏间隙上，让用户知道正在发生什么 */
+  #switching,#loading{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:8;display:none;
+    background:#fffffff2;border:1px solid #e4eaf3;border-radius:999px;padding:8px 16px;
+    font-size:12px;font-weight:550;color:var(--fg2);white-space:nowrap;
+    box-shadow:0 12px 28px #16202e1f;}
+  #switching::before,#loading::before{content:"";display:inline-block;width:11px;height:11px;border-radius:50%;
+    border:1.6px solid #1657fd33;border-top-color:var(--brand);margin-right:9px;vertical-align:-2px;
+    animation:spin .9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  /* 被控端息屏：投屏只能采到黑屏但触控仍可用，常驻提示「点一下唤醒」，点击穿透到触控层 */
+  #screenOff{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9;display:none;
+    flex-direction:column;align-items:center;gap:7px;text-align:center;pointer-events:none;
+    background:#fffffff2;border:1px solid #e4eaf3;border-radius:16px;padding:17px 24px;max-width:86vw;
+    box-shadow:0 20px 44px #16202e26;}
+  #screenOff b{font-size:14px;color:var(--warn);font-weight:650;letter-spacing:.02em;}
+  #screenOff span{font-size:12px;color:var(--dim);white-space:nowrap;}
+  /* 已连接、数据在走但画面没上屏（浏览器没自动播放 / 编码器静止不出帧）：整屏提示点击 */
+  #tapPlay{position:absolute;inset:0;z-index:9;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:8px;text-align:center;background:#0a0f16a6;pointer-events:none;padding:20px;}
+  #tapPlay b{font-size:17px;font-weight:650;color:#f2f6fc;}
+  #tapPlay span{font-size:13.5px;color:#c6d3e3;line-height:1.9;}
+
+  /* ---------- 连接页 ---------- */
+  #overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;
+    padding:24px;overflow:auto;text-align:center;
+    /* 亮底 + 两团与图标同向的蓝青薄雾，入口明亮但不发灰 */
+    background:
+      radial-gradient(120% 82% at 86% 114%,#1657fd14 0%,transparent 62%),
+      radial-gradient(96% 62% at 6% -12%,#2cc6fd1f 0%,transparent 58%),
+      var(--bg);
+    transition:opacity .26s ease;}
+  #overlay.hide{opacity:0;pointer-events:none;}
+  .connectCard{position:relative;z-index:1;margin:auto;width:min(396px,100%);text-align:left;
+    padding:30px 28px 26px;border-radius:22px;
+    background:#ffffff;
+    border:1px solid var(--line);
+    box-shadow:0 30px 70px #16202e1a,0 2px 6px #16202e0f;
+    animation:cardIn .42s cubic-bezier(.16,1,.3,1) both;
+    transition:transform .26s ease;}
+  #overlay.hide .connectCard{transform:scale(.985);}
+  @keyframes cardIn{from{opacity:0;transform:translateY(12px) scale(.988)}to{opacity:1;transform:none}}
+  .cbrand{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+  /* 图标外圈一道蓝→青轨道，呼应图标里的环；全页只有这一处会慢慢转 */
+  .cmarkWrap{position:relative;width:56px;height:56px;flex:none;display:grid;place-items:center;}
+  .cmarkWrap::before{content:"";position:absolute;inset:-12px;border-radius:50%;
+    background:conic-gradient(from 200deg,#1657fd00 0 50%,#2cc6fd 66%,#1657fd 88%,#1657fd00 100%);
+    -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));
+    mask:radial-gradient(farthest-side,transparent calc(100% - 2px),#000 calc(100% - 1.5px));
+    animation:orbit 11s linear infinite;}
+  @keyframes orbit{to{transform:rotate(360deg)}}
+  .cmark{width:54px;height:54px;flex:none;display:block;
+    filter:drop-shadow(0 10px 20px #16202e26);}
+  .cname{font-size:16px;font-weight:700;letter-spacing:.04em;color:var(--fg);line-height:1.3;}
+  #overlay h2{margin:0 0 8px;font-size:26px;line-height:1.26;font-weight:700;letter-spacing:-.01em;color:var(--fg);}
+  #overlay p{margin:0 0 22px;color:var(--dim);font-size:12.5px;line-height:1.95;max-width:34ch;}
+  #overlay .pinRow{display:flex;flex-direction:column;gap:10px;width:100%;}
+  #pinInput{width:100%;height:52px;text-align:center;text-indent:.4em;font-family:var(--mono);
+    font-size:22px;font-weight:650;letter-spacing:.4em;color:var(--fg);
+    background:#f7f9fd;border:1px solid var(--line2);border-radius:12px;
+    transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;}
+  #pinInput::placeholder{font-family:var(--font);font-size:12.5px;font-weight:500;letter-spacing:.1em;color:var(--dim2);}
+  #pinInput:focus{background:#fff;border-color:var(--brand);box-shadow:0 0 0 4px #1657fd1f;}
+  #wsAddr{display:none;width:100%;height:44px;font-size:13px;}
+  #connBtn{width:100%;height:48px;border-radius:12px;font-size:15px;font-weight:650;letter-spacing:.14em;}
+
+  /* ---------- 底部按键 ---------- */
+  #keys{position:fixed;bottom:0;left:0;right:0;z-index:30;
+    height:calc(62px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:center;
+    gap:8px;padding:0 12px env(safe-area-inset-bottom,0px);
+    background:#fff;border-top:1px solid var(--line);}
+  #keys button{min-width:74px;height:38px;padding:0 16px;font-size:12.5px;font-weight:550;
+    background:#f7f9fd;border-color:var(--line);color:var(--fg2);border-radius:10px;
+    box-shadow:0 1px 2px #16202e0a;}
+  #btnKb{display:none;}
+  body.touch #btnKb{display:block;}
+  #btnFs{display:none;}
+  body.touch #btnFs{display:block;}
+
+  /* 未连接（连接页）只留品牌和连接卡：功能按钮、画质、按键栏、统计都不提前出现 */
+  body.offline #dot,body.offline .stat,body.offline #stats,body.offline #qualitySel,
+  body.offline #topBtns,body.offline #keys{display:none;}
+  body.offline #stage{bottom:0;}
+  /* 独立窗口本身没有再开独立窗口的必要 */
+  body.pop #btnWin{display:none!important;}
+
+  /* ---------- 文件 / 传输面板 ---------- */
+  #filePanel,#taskPanel{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));right:0;
+    bottom:calc(62px + env(safe-area-inset-bottom,0px));
+    width:min(var(--panelW),94vw);z-index:40;display:flex;flex-direction:column;
+    background:var(--panel);
+    border-left:1px solid var(--line);
+    box-shadow:-24px 0 60px #16202e14;
+    transform:translateX(calc(100% + 32px));
+    transition:transform .34s cubic-bezier(.32,.72,0,1);}
+  #taskPanel{z-index:41;}
+  #filePanel.open,#taskPanel.open{transform:none;}
+  #filePanel header,#taskPanel header{min-height:66px;padding:16px 18px 16px 20px;
+    border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;flex:none;}
+  #filePanel header>b,#taskPanel header>b{
+    font-size:15px;font-weight:650;letter-spacing:.02em;white-space:nowrap;}
+  #btnTasks{display:inline-flex;align-items:center;gap:5px;height:27px;padding:0 10px;
+    font-size:11.5px;font-weight:600;color:var(--brand);background:#eaf0ff;border:1px solid #cfdfff;
+    border-radius:999px;}
+  #taskBadge{display:none;background:var(--brand);color:#fff;border-radius:999px;padding:0 6px;
+    font-family:var(--mono);font-size:10px;font-weight:700;line-height:15px;margin-left:1px;}
+  #btnCloseFiles,#btnCloseTasks{width:30px;height:30px;padding:0;flex:none;display:grid;place-items:center;
+    background:transparent;border-color:transparent;color:var(--dim);font-size:15px;border-radius:9px;}
+  #btnClearTasks{height:28px;padding:0 10px;color:var(--dim);font-size:11px;white-space:nowrap;
+    background:transparent;border-color:transparent;}
+  #filePanel .body,#taskPanel .body{flex:1;min-height:0;overflow:auto;padding:18px;
+    display:flex;flex-direction:column;overscroll-behavior:contain;
+    scrollbar-width:thin;scrollbar-color:#cfd9e6 transparent;}
+
+  /* 面板里的分区用细分隔线，不再一层卡片套一层卡片 */
+  .fcard{font-size:13px;}
+  #filePanel .body{gap:0;}
+  #filePanel .fcard{flex:none;padding:18px 0 2px;}
+  #filePanel .fcard + .fcard{border-top:1px solid var(--line);margin-top:18px;}
+  .ftitle{display:flex;align-items:center;gap:8px;margin:0 0 13px;
+    font-size:13px;font-weight:650;letter-spacing:.02em;color:var(--fg);}
+  .ftitle svg.ic{width:15px;height:15px;flex:none;color:var(--brand);opacity:.9;}
+  .hint{color:var(--dim);font-size:12px;line-height:1.8;margin:0;}
+
+  #drop{margin:0;padding:24px 14px;border:1px dashed #c9d6e8;border-radius:12px;
+    background:#f8fafe;
+    color:var(--fg2);font-size:13px;font-weight:500;line-height:1.7;text-align:center;cursor:pointer;
+    transition:border-color .18s ease,background .18s ease;}
+  #drop::before{content:"";display:block;width:32px;height:32px;margin:0 auto 10px;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231657fd' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17a4 4 0 0 1-.6-7.96A6 6 0 0 1 18 10a4 4 0 0 1-.5 7'/%3E%3Cpath d='M12 12v8'/%3E%3Cpath d='M9 15l3-3 3 3'/%3E%3C/svg%3E") center/contain no-repeat;}
+  #drop .dragOnly{font-size:11px;color:var(--dim);}
+  #drop.over{border-color:var(--brand);color:var(--fg);background:#eff4ff;}
+  .pickRow{display:flex;gap:8px;margin-top:10px;}
+  .pickRow button{flex:1;height:40px;font-size:12.5px;border-radius:10px;}
+  #btnPickFiles{background:var(--brand);border-color:var(--brand);color:#fff;
+    box-shadow:0 8px 18px #16202e1a, inset 0 1px 0 #ffffff2b;}
+  @media (hover:hover){#btnPickFiles:hover{background:#0f4ce6;border-color:#0f4ce6;}}
+  #btnPickFolder{background:#f7f9fd;border-color:var(--line2);color:var(--fg2);}
+  .destRow{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:12px;color:var(--dim);}
+  .destRow > span{flex:none;}
+  #upDest{flex:1;min-width:0;height:34px;padding:0 30px 0 10px;font-size:12px;color:var(--fg);background-color:#f7f9fd;}
+  .fcard > .hint{margin-top:10px;}
+  .encRow{display:flex;align-items:center;gap:9px;margin-top:14px;font-size:12px;color:var(--dim);cursor:pointer;
+    -webkit-user-select:none;user-select:none;}
+  .encRow > span:first-child{flex:none;}
+  .encRow.encTop{margin:0;padding:0 0 14px;border-bottom:1px solid var(--line);}
+  .encScope{margin-left:auto;font-size:11px;color:var(--dim);}
+  .encRow input{position:absolute;opacity:0;width:0;height:0;pointer-events:none;}
+  .encSw{position:relative;flex:none;width:38px;height:22px;border-radius:11px;background:#e1e8f2;
+    border:1px solid #cbd6e5;transition:background .18s ease,border-color .18s ease;}
+  .encSw::after{content:"";position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;
+    background:#94a3b6;transition:transform .18s ease,background .18s ease;}
+  #xferEnc:checked + .encSw{background:var(--brand);border-color:var(--brand);}
+  #xferEnc:checked + .encSw::after{transform:translateX(16px);background:#fff;}
+  #xferEnc:focus-visible + .encSw{box-shadow:0 0 0 3px #1657fd33;}
+  .encNote{font-size:11px;line-height:1.45;color:#06775a;}
+  .encNote.off{color:var(--warn);}
+
+  .fsBar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .fsBar button{height:30px;padding:0 10px;font-size:11.5px;border-radius:8px;color:var(--fg2);background:#f7f9fd;border-color:var(--line);}
+  #fsPath{width:100%;margin-top:9px;padding:7px 10px;background:#f7f9fd;border:1px solid var(--line);
+    border-radius:8px;font-family:var(--mono);font-size:11px;color:var(--dim);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:ltr;text-align:left;}
+  #fsSelBar{display:none;margin-top:9px;padding:8px;gap:6px;align-items:center;flex-wrap:wrap;
+    background:#eff4ff;border:1px solid #cfdfff;border-radius:10px;}
+  #fsSelBar button{height:28px;padding:0 10px;font-size:11.5px;border-radius:8px;background:#fff;border-color:#cfdfff;color:var(--brand);}
+  #fsSelCount{font-size:11px;color:var(--dim);}
+  #fsList{margin-top:10px;max-height:clamp(150px,26vh,290px);overflow:auto;
+    background:#fff;border:1px solid var(--line);border-radius:10px;}
+  #fsList:empty,#fsHint:empty{display:none;}
+  #fsList .hint{padding:16px;text-align:center;font-size:12px;}
+  .fsrow{display:flex;align-items:center;gap:8px;min-height:46px;padding:8px 12px;
+    border-bottom:1px solid #eef2f8;cursor:pointer;font-size:12.5px;color:var(--fg2);
+    transition:background .14s ease;}
+  .fsrow:last-child{border-bottom:none;}
+  @media (hover:hover){.fsrow:hover{background:#f5f8fc;}}
+  .fsrow input[type=checkbox]{accent-color:var(--brand);width:15px;height:15px;flex:none;}
+  .fsname{flex:1;min-width:0;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap;}
+  .fsname::before{content:"";display:inline-block;width:15px;height:15px;margin-right:9px;
+    vertical-align:-3px;opacity:.9;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fa0b5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 3v5h5'/%3E%3C/svg%3E") center/contain no-repeat;}
+  .fsrow.dir .fsname{font-weight:600;color:var(--brand);}
+  .fsrow.dir .fsname::before{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231657fd' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/%3E%3C/svg%3E");}
+  .fsmeta{color:var(--dim2);font-family:var(--mono);font-size:11px;flex-shrink:0;}
+  #fsHint{margin-top:9px;}
+  #btnDl{display:none;width:100%;height:36px;margin-top:10px;font-size:12px;border-radius:9px;
+    background:#eaf0ff;border-color:#cfdfff;color:var(--brand);}
+  #btnClipGet:hover,#btnDl:hover,#fsSelBar button:hover{background:#dde8ff;border-color:#b9cfff;color:#0b3fc7;}
+
+  .clipBlock + .clipBlock{margin-top:14px;}
+  .clipBlock > .hint{margin-bottom:8px;}
+  #filePanel textarea{width:100%;min-height:64px;padding:10px 12px;font-size:12px;line-height:1.7;
+    background:#f7f9fd;border-color:var(--line);border-radius:10px;}
+  #btnClipGet{width:100%;height:38px;margin-top:14px;font-size:12px;border-radius:10px;
+    background:#eaf0ff;border-color:#cfdfff;color:var(--brand);}
+
+  /* 被控端剪贴板历史（点选复制到主控端） */
+  #clipHist{display:none;margin-top:10px;max-height:190px;overflow:auto;
+    border:1px solid var(--line);border-radius:10px;background:#fff;}
+  #clipHist.open{display:block;}
+  #clipHist .hi{display:flex;gap:8px;align-items:center;padding:9px 11px;
+    border-bottom:1px solid #eef2f8;cursor:pointer;font-size:12px;color:var(--fg2);}
+  #clipHist .hi:last-of-type{border-bottom:none;}
+  @media (hover:hover){#clipHist .hi:hover{background:#f5f8fc;}}
+  #clipHist .hi small{color:var(--dim2);font-family:var(--mono);font-size:11px;flex:none;}
+  #clipHist .hi span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #clipHist .empty{padding:12px 11px;color:var(--dim);font-size:12px;line-height:1.7;}
+  #clipHist .more{padding:9px;font-size:11.5px;font-weight:600;color:var(--brand);cursor:pointer;text-align:center;}
+  @media (hover:hover){#clipHist .more:hover{background:#f5f8fc;}}
+
+  /* ---------- 传输任务 ---------- */
+  #taskPanel .body{gap:10px;}
+  #taskPanel .fcard{padding:14px 15px;background:#fff;border:1px solid var(--line);border-radius:12px;
+    overflow-wrap:anywhere;line-height:1.7;}
+  #taskPanel .fcard > b{display:block;font-size:13px;font-weight:650;letter-spacing:.01em;
+    color:var(--fg);line-height:1.5;margin-bottom:2px;}
+  #taskPanel .bar{height:6px;margin:10px 0 8px;background:#eef3fa;border:1px solid var(--line);
+    border-radius:999px;overflow:hidden;}
+  #taskPanel .bar > i{display:block;height:100%;width:0;border-radius:999px;
+    background:linear-gradient(90deg,#1657fd,#2cc6fd);transition:width .25s ease;}
+  #taskPanel .tbtns{margin-top:10px;gap:7px;}
+  .tbtns{margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;}
+  .tbtns button{height:28px;padding:0 11px;font-size:11.5px;border-radius:8px;
+    background:#f7f9fd;border-color:var(--line);}
+  .tbtns .tcancel{color:var(--err);}
+  #taskEmpty{margin:auto 0;text-align:center;padding:40px 22px;border:1px dashed #d5dfec;
+    border-radius:14px;font-size:12px;line-height:1.95;color:var(--dim);}
+
+  /* ---------- 提示 / 杂项 ---------- */
+  #toast{position:fixed;left:50%;bottom:calc(62px + env(safe-area-inset-bottom,0px) + 18px);
+    transform:translateX(-50%);z-index:60;display:none;max-width:min(480px,92vw);
+    background:#fffffff7;border:1px solid var(--line);border-radius:12px;padding:10px 18px;
+    font-size:12.5px;line-height:1.7;color:var(--fg);text-align:left;
+    box-shadow:0 16px 40px #16202e1f;
+    animation:toastIn .22s cubic-bezier(.16,1,.3,1);}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+  #kb{position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;font-size:16px;}
+  body.touch #stBps{display:inline;}
+  body.touch #drop .dragOnly{display:none;}
+  /* 切画质/自动恢复时先把上一帧定格在此画布上，重建解码器期间不再黑屏 */
+  #freeze{position:absolute;inset:0;z-index:4;width:100%;height:100%;display:none;pointer-events:none;background:#0a0f16;}
+
+  /* ---------- 独立窗口模式：画面铺满整个窗口，顶/底栏改为自动隐藏的悬浮层 ---------- */
+  body.pop #stage{inset:0;}
+  body.pop #top,body.pop #keys{opacity:0;pointer-events:none;transition:opacity .25s ease;}
+  body.pop.ui #top{opacity:1;pointer-events:auto;}
+  body.pop.ui #keys{opacity:1;}
+  body.pop #top{height:calc(40px + env(safe-area-inset-top,0px));gap:6px;
+    padding:env(safe-area-inset-top,0px) 8px 0;
+    background:linear-gradient(#0b1119e6,#0b1119c8);border-bottom-color:#ffffff1f;}
+  body.pop #top::after{display:none;}
+  body.pop #top .title{font-size:12px;letter-spacing:.02em;color:#f2f6fc;}
+  body.pop .stat{font-size:11px;color:#a9b7c9;}
+  body.pop #stLat{color:#e6edf7;font-size:11px;}
+  body.pop #stats{background:#0f1721cc;border-color:#ffffff1f;}
+  body.pop .stat + .stat::before{background:#46566a;}
+  body.pop .logo{width:22px;height:22px;filter:drop-shadow(0 3px 7px #00000073);}
+  body.pop #qualitySel{height:26px;padding:0 22px 0 8px;font-size:11px;
+    background-color:#101925;border-color:#2a3646;color:#d5e2f2;}
+  body.pop #topBtns button{height:26px;padding:0 8px;font-size:11px;gap:4px;border-radius:7px;
+    background:#10161fe6;border-color:#ffffff24;color:#d7e2f0;}
+  body.pop #btnFiles{background:#12243c;border-color:#2b4b74;color:#d3e6ff;}
+  body.pop #btnEnd{color:#ef8a93;background:transparent;border-color:transparent;}
+  body.pop #topBtns svg.ic{width:11px;height:11px;}
+  /* 底部按键条容器永不拦截点击（不挡被控端导航栏），只有浮现时按钮本身可点，居中悬浮成小组 */
+  body.pop #keys{height:calc(50px + env(safe-area-inset-bottom,0px));gap:6px;
+    background:none;border-top:none;}
+  body.pop #keys button{min-width:56px;height:32px;padding:0 12px;font-size:11.5px;
+    background:#10161fe6;border:1px solid #ffffff26;border-radius:9px;color:#e6edf7;box-shadow:0 4px 14px #000a;}
+  body.pop.ui #keys button{pointer-events:auto;}
+
+  /* 桌面宽屏：文件/传输面板停靠在右侧，画面区域跟着让位，不再压住手机画面 */
+  @media (min-width:900px){
+    #stage{transition:right .3s cubic-bezier(.32,.72,0,1);}
+    body.panel:not(.pop) #stage{right:var(--panelW);}
+  }
+
+  @media (max-width:560px){
+    #top{height:calc(50px + env(safe-area-inset-top,0px));gap:7px;padding:env(safe-area-inset-top,0px) 10px 0 11px;}
+    #stage{inset:calc(50px + env(safe-area-inset-top,0px)) 0 calc(62px + env(safe-area-inset-bottom,0px)) 0;}
+    #filePanel,#taskPanel{top:calc(50px + env(safe-area-inset-top,0px));width:100vw;border-left:none;box-shadow:none;}
+    .logo{width:24px;height:24px;}
+    #top .title{display:none;}
+    body.offline #top .title{display:inline;}
+    #stats{height:24px;padding:3px 7px;}
+    .stat{font-size:11px;}
+    .stat.hideS{display:none;}
+    body.touch #stBps{display:inline;}
+    #stLat{font-size:11px;}
+    #stEnc{display:none;}
+    #qualitySel{height:28px;font-size:11px;padding:0 23px 0 8px;}
+    #topBtns{gap:5px;}
+    #topBtns button{height:30px;padding:0 9px;font-size:11.5px;gap:0;}
+    #topBtns svg.ic{display:none;}
+    #keys{gap:6px;padding:0 8px env(safe-area-inset-bottom,0px);}
+    body.touch #keys button{min-width:0;flex:1;height:40px;padding:0 4px;font-size:12px;}
+    #overlay{padding:16px;}
+    .connectCard{padding:26px 20px 22px;border-radius:20px;}
+    .cmarkWrap{width:50px;height:50px;}
+    .cmark{width:48px;height:48px;}
+    .cbrand{margin-bottom:20px;gap:12px;}
+    .cname{font-size:15px;}
+    #overlay h2{font-size:23px;}
+    #overlay p{font-size:12px;margin-bottom:18px;}
+    #pinInput{height:50px;font-size:21px;letter-spacing:.3em;text-indent:.3em;}
+    #pinInput::placeholder{font-size:12px;}
+    #connBtn{height:46px;font-size:14.5px;}
+    #filePanel .body,#taskPanel .body{padding:14px;}
+    #filePanel .fcard{padding:14px 0 2px;}
+    #filePanel .fcard + .fcard{margin-top:14px;}
+    #filePanel header,#taskPanel header{padding:14px 14px 14px 16px;min-height:60px;}
+    #toast{max-width:92vw;text-align:center;line-height:1.6;}
+  }
+  @media (max-width:460px){
+    #btnWin{width:30px;padding:0;}
+    #btnWin svg.ic{display:inline-block;}
+    #btnWin .lbl{display:none;}
+  }
+  @media (max-width:380px){
+    #filePanel header,#taskPanel header{padding:12px;}
+    #filePanel .body,#taskPanel .body{padding:12px;}
+    #filePanel .fcard{padding:12px 0 2px;}
+    #topBtns button{padding:0 7px;}
+    .connectCard{padding:22px 16px 18px;}
+    #overlay h2{font-size:22px;}
+  }
+  @media (max-height:600px){
+    #overlay{padding:10px;}
+    .connectCard{padding:16px 20px 14px;}
+    .cbrand{margin-bottom:10px;gap:10px;}
+    .cmarkWrap{width:44px;height:44px;}
+    .cmarkWrap::before{inset:-9px;}
+    .cmark{width:42px;height:42px;}
+    .cname{font-size:15px;}
+    #overlay h2{font-size:20px;margin-bottom:3px;}
+    #overlay p{margin-bottom:10px;font-size:12px;line-height:1.55;}
+    #overlay .pinRow{gap:8px;}
+    #pinInput{height:42px;font-size:20px;}
+    #pinInput::placeholder{font-size:12px;}
+    #wsAddr{height:40px;font-size:12.5px;}
+    #connBtn{height:42px;font-size:14px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+      transition-duration:.001ms!important;scroll-behavior:auto!important;}
+  }
+</style>
+</head>
+<body class="offline">
+<div id="top">
+  <img class="logo" src="favicon-192.png" alt="" aria-hidden="true">
+  <span class="title">随手控</span>
+  <span id="dot"></span>
+  <div id="stats">
+    <span class="stat" id="stLat">— ms</span>
+    <span class="stat" id="stEnc" title="被控端采集→编码的排队耗时：这个值大说明卡在被控端编码，不是网络">—</span>
+    <span class="stat hideS" id="stBps">— kbps</span>
+    <span class="stat hideS" id="stRes"></span>
+  </div>
+  <div class="grow"></div>
+  <select id="qualitySel" title="画质（与被控端同步）" disabled>
+    <option value="low">流畅</option>
+    <option value="mid">均衡</option>
+    <option value="high">高清</option>
+    <option value="orig" selected>原画</option>
+  </select>
+  <div id="topBtns">
+    <button id="btnWin" title="在新窗口打开：按手机比例显示，窗口可自由拖动缩放"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="15" rx="2"/><path d="M3 9h18"/></svg><span class="lbl">独立窗口</span></button>
+    <button id="btnFiles" title="文件传输"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="lbl">文件</span></button>
+    <button id="btnEnd" class="danger" title="结束被控端会话"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v9"/><path d="M6.4 6.4a7.5 7.5 0 1 0 11.2 0"/></svg><span class="lbl">结束</span></button>
+  </div>
+</div>
+
+<div id="stage">
+  <video id="video" playsinline muted autoplay disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback noplaybackrate"></video>
+  <canvas id="freeze"></canvas>
+  <div id="touch"></div>
+  <div id="switching">正在切换清晰度…</div>
+  <div id="loading">画面加载中…</div>
+  <div id="screenOff"><b>被控端屏幕已关闭</b><span>可点击屏幕尝试唤醒</span></div>
+  <div id="tapPlay"><span>已连接，等待数据传输<br>可尝试点击屏幕</span></div>
+  <div id="overlay">
+    <div class="connectCard">
+      <div class="cbrand">
+        <div class="cmarkWrap"><img class="cmark" src="favicon-192.png" alt="" aria-hidden="true"></div>
+        <div>
+          <div class="cname">随手控</div>
+        </div>
+      </div>
+      <h2 id="ovTitle">未连接</h2>
+      <p id="ovText">请先在被控端点击「开始会话」，<br>再输入显示的 6 位 PIN。</p>
+      <div class="pinRow" id="pinRow">
+        <input id="pinInput" inputmode="numeric" maxlength="6" placeholder="PIN">
+        <input id="wsAddr" placeholder="被控端地址 IP:端口">
+        <button id="connBtn" class="primary">连接</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="keys">
+  <button data-k="back">返回</button>
+  <button data-k="home">主页</button>
+  <button data-k="recents">最近</button>
+  <button id="btnKb">输入</button>
+  <button id="btnFs">全屏</button>
+</div>
+
+<div id="filePanel">
+  <header><b>文件传输</b><button id="btnTasks" title="传输任务列表：进度/暂停/取消">传输列表<span id="taskBadge"></span></button><div class="grow"></div><button id="btnCloseFiles" title="关闭">✕</button></header>
+  <div class="body">
+    <label class="encRow encTop" id="encRow">
+      <span>传输加密</span>
+      <input type="checkbox" id="xferEnc" checked>
+      <span class="encSw" aria-hidden="true"></span>
+      <span class="encNote" id="encNote">安全传输</span>
+      <span class="encScope">上传与下载</span>
+    </label>
+    <section class="fcard">
+      <h3 class="ftitle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>发送到手机</h3>
+      <div id="drop">点击选择要发送的文件<span class="dragOnly"><br>也可将文件拖到此处</span></div>
+      <div class="pickRow">
+        <button id="btnPickFiles">选择文件…</button>
+        <button id="btnPickFolder">选择文件夹…</button>
+      </div>
+      <input type="file" id="fileInput" multiple style="display:none">
+      <input type="file" id="folderInput" webkitdirectory multiple style="display:none">
+      <label class="destRow">
+        <span>保存到：</span>
+        <select id="upDest">
+          <option value="app" selected>下载/随手控</option>
+          <option value="downloadroot">下载</option>
+        </select>
+      </label>
+      <p class="hint">传输时请不要移动画面（以保障传输速率）</p>
+    </section>
+    <section class="fcard">
+      <h3 class="ftitle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="M7 11l5 5 5-5"/><path d="M4 18v2h16v-2"/></svg>从手机下载</h3>
+      <div class="fsBar">
+        <button id="fsUp">↑ 上级</button>
+        <button id="fsRefresh">刷新</button>
+        <button id="fsMultiBtn">多选</button>
+      </div>
+      <div id="fsPath">/sdcard</div>
+      <div id="fsSelBar">
+        <button id="fsDlSel">下载所选</button>
+        <button id="fsSelAll">全选</button>
+        <button id="fsSelClear">清空</button>
+        <span id="fsSelCount" class="hint"></span>
+      </div>
+      <div id="fsList"></div>
+      <p id="fsHint" class="hint">点击文件确认后开始下载</p>
+      <button id="btnDl">改用被控端选择文件…</button>
+    </section>
+    <section class="fcard">
+      <h3 class="ftitle"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 10h6M9 14h4"/></svg>剪贴板同步</h3>
+      <div class="clipBlock">
+        <p class="hint">复制到手机：粘贴到下方输入框，自动同步到手机剪贴板。</p>
+        <textarea id="clipOut" rows="2" placeholder="在此粘贴主控端内容（Ctrl+V）"></textarea>
+      </div>
+      <div class="clipBlock">
+        <p class="hint">从手机复制：手机复制后自动同步主控剪贴板。</p>
+        <textarea id="clipIn" rows="2" placeholder="被控端剪贴板内容" readonly></textarea>
+      </div>
+      <button id="btnClipGet">打开手机剪贴板</button>
+      <div id="clipHist"></div>
+    </section>
+  </div>
+</div>
+
+<div id="taskPanel">
+  <header><b>传输任务</b><div class="grow"></div><button id="btnClearTasks">清除已结束</button><button id="btnCloseTasks" title="关闭">✕</button></header>
+  <div class="body">
+    <div id="fileList" style="display:flex;flex-direction:column;gap:10px;"></div>
+    <p id="taskEmpty" class="hint">暂无传输任务。在「文件」面板发送或下载文件后，任务会显示在这里。</p>
+  </div>
+</div>
+
+<textarea id="kb" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+<div id="toast"></div>
+
+<script src="jmuxer.min.js"></script>
+<script src="crypto-fallback.js"></script>
+<script>
+"use strict";
+/* ================= state ================= */
+const $ = id => document.getElementById(id);
+const video = $('video');
+const touch = $('touch');
+let ws = null, jm = null, connected = false, authed = false;
+let endNotified = false;   // 已用「PIN 错误/会话已结束」等明确原因提示过，onclose 不再覆盖
+let reconnectTimer = null, reconnectTry = 0, hadSession = false, userEnded = false, lastRxAt = 0;
+let wsGen = 0;   // 每次新建连接自增：旧上传循环看到代次变了就停手，避免把数据写进下个会话的流
+const MAX_RECONNECT = 5;   // 从未连上过时的尝试次数；建立过会话后持续重试，不轻易放弃
+const RETRY_DELAYS = [400, 2000, 3000, 5000, 8000, 10000];   // 有会话历史：间隔逐次拉长，封顶 10 秒
+let reconnectWhenVisible = false;   // 断线时页面在后台：不空转，回前台立即重连
+let isRelay = false, roomId = '';
+let bytesAcc = 0, lastBytesT = performance.now();
+let rawMsg = 0, decFail = 0, videoBytesTotal = 0;
+let streamRaw = 0, streamAbort = null, streamGen = 0;
+let lastPts = null;           // 上一帧的采集时间戳（ms），用于按真实间隔播放
+let lastCfg = null;           // 上一份 SPS/PPS 配置字节，用于检测分辨率/编码参数变化
+let phoneQuality = 'orig';    // 被控端当前画质（hello / vid-start 同步过来）
+const Q_RANK = {low:0, mid:1, high:2, orig:3};
+const Q_NAME = {low:'流畅', mid:'均衡', high:'高清', orig:'原画'};
+let switchTimer = null;       // 切画质提示的兜底超时
+let lastJump = 0;             // 上次硬跳追帧时间戳（冷却用，防 seek 风暴卡死）
+let firstFrameSeen = false;   // 首帧是否已喂入（用于撤掉「画面加载中」提示）
+let screenOff = false;        // 被控端是否息屏（息屏时投屏只有黑屏，触控仍可用）
+let painted = false;          // 是否已真正上屏（rVFC 回调）；play() 成功但没绘制时也要提示点击
+let paintGen = 0, firstFrameAt = 0;
+let lastFrameAt = 0, lastDecoded = 0, lastDecodedAt = 0, recoverAt = 0;   // 画面卡死自动恢复
+let composing = false;
+let dlParts = [], dlId = -1, dlName = '';
+let taskSeq = 0;               // 任务卡片 id 序列
+const tasks = new Map();       // id -> 任务 {kind, state, key, pause?, resume?, cancel?}；state: queued/active/paused/done/failed/cancelled
+let fsMulti = false;           // 文件管理多选模式
+const fsSel = new Set();       // 多选选中的完整路径
+let fsLast = null;             // 最近一次 fs-list 回应（全选用）
+const upJobs = new Map();   // id -> {file, total, sent, sentAll}：正在发送/等待回执的文件
+const protoCard = new Map();   // 旧通道协议 id -> 任务卡片 id（回执/进度按此找到卡片）
+const upQueue = [];         // 待发送文件：被控端只维护一份接收状态，多选时逐个发
+const pendingEnds = new Set();   // 已发 file-up-end、还没收到回执的 id（重连后补发）
+let upBusy = false, upSeq = 0;
+const pts = new Map();      // pointerId -> last {x,y}
+let lastMoveSent = 0, wheelAcc = 0, wheelTimer = null;
+let pingTimer = null, statTimer = null;
+let editRects = [];        // 被控端当前屏幕上输入框的位置（归一化 0..1），点中输入框才弹本机键盘
+let editQTimer = null, kbHideTimer = null;
+let kfTries = 0, lastKfReq = 0;   // 首帧迟迟不到时主动请求关键帧（最多 3 次）
+
+/* ================= 起播保障 ================= */
+/* 已连接、数据在走，但画面迟迟不出现，点一下屏幕就出来——两种常见原因：
+   ① 浏览器拦截静音自动播放，play() 被拒绝；
+   ② play() 没报错，但内核要等用户手势才真正绘制（部分国产浏览器/WebView）。
+   这里用 requestVideoFrameCallback 判断「是否真的上屏」，2.5 秒没上屏就整屏提示点击；
+   只重试播放，不自动 seek 缓冲末端（MSE 下频繁 seek 可能让播放停住）。 */
+function kickVideoPlay(){
+  if(!authed) return;
+  try{ video.muted = true; }catch(e){}
+  const p = video.play();
+  if(p && p.catch) p.catch(err => { if(err && err.name === 'NotAllowedError') showTapHint(); });
+}
+/** 监视是否真的有一帧上屏；不支持的浏览器按「已上屏」处理，避免误提示 */
+function watchPaint(){
+  painted = false;
+  const g = ++paintGen;
+  if(!video.requestVideoFrameCallback){ painted = true; return; }
+  const step = ()=>{
+    if(g !== paintGen) return;
+    video.requestVideoFrameCallback(()=>{
+      if(g !== paintGen) return;
+      painted = true; hideTapHint(); step();
+    });
+  };
+  step();
+}
+function showTapHint(){
+  if(!authed) return;
+  if(screenOff) return;               // 息屏时用另一条提示，不叠加
+  $('loading').style.display = 'none';
+  $('tapPlay').style.display = 'flex';
+}
+function hideTapHint(){ $('tapPlay').style.display = 'none'; }
+function markPlaying(){
+  $('loading').style.display = 'none';
+  unfreeze();
+  if(painted) hideTapHint();
+}
+video.addEventListener('playing', markPlaying);
+video.addEventListener('pause', ()=>{
+  if(!authed || document.hidden) return;
+  setTimeout(()=>{ if(authed && video.paused) showTapHint(); }, 500);
+});
+document.addEventListener('pointerdown', ()=>{ kickVideoPlay(); }, true);
+document.addEventListener('touchstart', kickVideoPlay, {capture:true, passive:true});
+document.addEventListener('keydown', kickVideoPlay, true);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) kickVideoPlay(); });
+window.addEventListener('focus', kickVideoPlay);
+window.addEventListener('pageshow', kickVideoPlay);
+
+/* ================= 端到端加密（与被控端 Crypt.kt 对齐） ================= */
+/* http 非安全上下文无 WebCrypto，自动回退纯 JS 实现（格式完全一致，加密始终开启） */
+const HAS_SUBTLE = !!(window.crypto && window.crypto.subtle);
+let key = null, curPin = '';          // key: CryptoKey 或 {js:true, ctx:PureCrypto.context}
+let sendQ = Promise.resolve(), inQ = Promise.resolve();
+
+function bytesToB64(u8){ let s=''; for(let i=0;i<u8.length;i+=0x8000){ s+=String.fromCharCode.apply(null, u8.subarray(i,i+0x8000)); } return btoa(s); }
+function sameBytes(a,b){ if(!a||!b||a.length!==b.length) return false; for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false; return true; }
+function b64ToBytes(s){ const bin=atob(s); const u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i); return u8; }
+
+async function deriveKey(saltB64){
+  const salt = b64ToBytes(saltB64);
+  if (HAS_SUBTLE) {
+    const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(curPin), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt, iterations:200000, hash:'SHA-256' },
+      base, { name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+  }
+  const bytes = PureCrypto.pbkdf2Sha256(curPin, salt, 200000, 32);
+  return { js: true, ctx: PureCrypto.context(bytes) };
+}
+async function encBytes(pt){ // → iv||body
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const body = HAS_SUBTLE
+    ? new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, pt))
+    : key.ctx.seal(iv, pt);
+  const out = new Uint8Array(iv.length + body.length); out.set(iv); out.set(body, iv.length);
+  return out;
+}
+async function decBytes(data){ // iv||body → 明文
+  const iv = data.subarray(0, 12), body = data.subarray(12);
+  if (HAS_SUBTLE) return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, body));
+  return key.ctx.open(iv, body);
+}
+async function encText(o){
+  const wrapped = await encBytes(new TextEncoder().encode(JSON.stringify(o)));
+  return JSON.stringify({t:'enc', d: bytesToB64(wrapped)});
+}
+async function decText(s){
+  let j; try{ j = JSON.parse(s); }catch(e){ return null; }
+  if(j.t !== 'enc') return j;
+  if(!key) return null;
+  const pt = await decBytes(b64ToBytes(j.d));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+async function encBin(u8){ return encBytes(u8); }
+async function decBin(u8){
+  if(!key) return u8;
+  return decBytes(u8);
+}
+
+/* ================= helpers ================= */
+function toast(s){ const t=$('toast'); t.textContent=s; t.style.display='block';
+  clearTimeout(t._h); t._h=setTimeout(()=>t.style.display='none', 2200); }
+/* http 非安全上下文没有 navigator.clipboard：优先用它，失败/不存在则用临时 textarea + execCommand 兜底。
+   execCommand 需要用户手势，故只在按钮点击里调用；自动同步时失败就把内容留在框里供手动复制。 */
+async function copyText(s){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    try{ await navigator.clipboard.writeText(s); return true; }catch(e){}
+  }
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=s; ta.style.position='fixed'; ta.style.opacity='0'; ta.style.left='-9999px';
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    const ok=document.execCommand('copy'); ta.remove(); return ok;
+  }catch(e){ return false; }
+}
+/* 主控端剪贴板最近写入的内容：外部跨设备剪贴板（妙享/手机连接等）会把主控端内容回写被控端，
+   被控端再自动同步回来；识别为回声时不再写主控端剪贴板，打断重复提示的环 */
+const PC_ECHO_WINDOW_MS = 8000;
+let lastPcClip = { s: '', t: 0 };
+function rememberPcClip(s){ lastPcClip = { s, t: Date.now() }; }
+function isPcEcho(s){ return !!s && s === lastPcClip.s && Date.now() - lastPcClip.t < PC_ECHO_WINDOW_MS; }
+/* 专用传输通道：直连模式（页面由被控端 http 托管）才可用；中继/本地 file 打开时回退旧 WS 通道 */
+function canHttp(){ return !isRelay && (location.protocol === 'http:' || location.protocol === 'https:'); }
+function fmtSpeed(bps){ if(!isFinite(bps)||bps<=0) return '—'; if(bps<1024) return bps.toFixed(0)+' B/s'; if(bps<1048576) return (bps/1024).toFixed(1)+' KB/s'; return (bps/1048576).toFixed(2)+' MB/s'; }
+function fmtEta(sec){ if(!isFinite(sec)||sec<=0) return '—'; sec=Math.round(sec); if(sec<60) return sec+'秒'; const m=Math.floor(sec/60); if(m<60) return m+'分'+(sec%60)+'秒'; return Math.floor(m/60)+'时'+(m%60)+'分'; }
+function saveBlob(blob, name){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+}
+/* 直连才显示「选择文件夹/多选」（这些走专用 HTTP 通道）；中继模式隐藏，回退单文件旧通道 */
+function updateXferUi(){
+  const http = canHttp();
+  $('btnPickFolder').style.display = http ? '' : 'none';
+  $('fsMultiBtn').style.display = http ? '' : 'none';
+  if(!http){ fsMulti = false; fsSel.clear(); $('fsSelBar').style.display = 'none'; }
+}
+function send(o){
+  if(!ws || ws.readyState !== 1) return;
+  if(!key){ ws.send(JSON.stringify(o)); return; }
+  // 队列化保证帧序（异步加密不打乱顺序）
+  sendQ = sendQ.then(()=>encText(o)).then(s=>{ if(ws && ws.readyState===1) ws.send(s); }).catch(()=>{});
+}
+function sendBinary(u8){
+  if(!ws || ws.readyState !== 1) return Promise.resolve();
+  // 与文本帧共用同一条队列：文本走加密队列、二进制直发时，file-up-meta / 数据块 / file-up-end
+  // 会因各自异步加密而乱序到达，被控端会把块写进上一份文件甚至提前收尾（上传“成功”但文件不完整）
+  sendQ = sendQ.then(async ()=>{
+    const data = key ? await encBin(u8) : u8;
+    if(ws && ws.readyState === 1) ws.send(data);
+  }).catch(()=>{});
+  return sendQ;
+}
+function resetLinkUi(){
+  $('stLat').textContent = '— ms'; $('stEnc').textContent = '—'; $('stBps').textContent = '— kbps'; $('stRes').textContent = '';
+  $('qualitySel').disabled = true;
+  editRects = [];   // 断开后旧的输入框位置作废
+  clearTimeout(kbHideTimer);
+  paintGen++; painted = false;   // 让上一条上屏检测链失效
+  hideTapHint();
+  setScreenOff(false);
+  unfreeze();
+}
+/** 被控端息屏提示：黑屏但还能操作时，让用户知道点一下画面就能唤醒 */
+function setScreenOff(off){
+  screenOff = !!off;
+  $('screenOff').style.display = (screenOff && authed) ? 'flex' : 'none';
+  if(screenOff) hideTapHint();   // 息屏提示优先，不叠加两条
+}
+let overlayHideTimer = null;
+function overlay(title, text, showPin){
+  clearTimeout(overlayHideTimer);
+  $('ovTitle').textContent = title; $('ovText').innerHTML = text;
+  $('overlay').classList.remove('hide');
+  $('overlay').style.display = 'flex'; $('pinRow').style.display = showPin?'flex':'none';
+  $('dot').className=''; resetLinkUi();
+}
+/* 连接成功：连接卡淡出收缩约 260ms 再撤掉，让「进入画面」有一个明确的落点 */
+function hideOverlay(){
+  const ov = $('overlay');
+  if(ov.style.display === 'none') return;
+  ov.classList.add('hide');
+  clearTimeout(overlayHideTimer);
+  overlayHideTimer = setTimeout(()=>{ ov.style.display='none'; ov.classList.remove('hide'); }, 280);
+}
+
+/* 画质以被控端为准：主控修改后由被控端重启编码并广播新画质，所有主控与被控端设置保持一致 */
+function setPhoneQuality(q){
+  if(!(q in Q_RANK)) return;
+  phoneQuality = q;
+  $('qualitySel').value = q;
+}
+function showSwitching(){
+  $('switching').style.display='block';
+  clearTimeout(switchTimer);
+  switchTimer = setTimeout(()=>{ $('switching').style.display='none'; }, 5000);
+}
+function hideSwitching(){ clearTimeout(switchTimer); $('switching').style.display='none'; }
+
+function ensureJmuxer(){
+  if(jm) return;
+  // maxDelay 是 jmuxer 自带的硬跳追帧，放宽到 3s 只做兜底；常规追帧由 statTimer 平滑加速完成
+  jm = new JMuxer({ node:'video', mode:'video', flushingTime:0, fps:30, maxDelay:3000, debug:false,
+    onError:()=>{ /* 忽略偶发坏帧 */ } });
+}
+/* 切换画质会重建解码器，重建期间 video 是黑的：先把当前帧画到画布上定格，等新帧到达再撤掉 */
+function freezeFrame(){
+  try{
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if(!vw || !vh) return;
+    const box = $('stage').getBoundingClientRect();
+    const c = $('freeze');
+    c.width = Math.max(1, Math.round(box.width));
+    c.height = Math.max(1, Math.round(box.height));
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height);
+    const s = Math.min(c.width/vw, c.height/vh);
+    const dw = vw*s, dh = vh*s;
+    ctx.drawImage(video, (c.width-dw)/2, (c.height-dh)/2, dw, dh);
+    c.style.display = 'block';
+  }catch(e){}
+}
+function unfreeze(){ const c = $('freeze'); if(c) c.style.display = 'none'; }
+
+/* ================= connect ================= */
+function escHtml(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/** 建立连接。auto=true 是断线后的自动重连：不弹遮罩，保留最后一帧画面 */
+function connect(auto){
+  const pin = $('pinInput').value.trim() || (auto ? curPin : '');
+  if(!/^\d{6}$/.test(pin)){ if(!auto) toast('请输入 6 位数字 PIN'); return; }
+  curPin = pin;
+  clearTimeout(reconnectTimer); reconnectTimer = null;
+  if(!auto){ endNotified = false; userEnded = false; reconnectTry = 0; }
+  let url;
+  if(isRelay){
+    url = (location.protocol==='https:'?'wss://':'ws://') + location.host + '/client?room=' + encodeURIComponent(roomId);
+  } else if(location.protocol==='file:'){
+    const addr = $('wsAddr').value.trim(); if(!addr){ if(!auto) toast('请填写被控端地址（IP:端口）'); return; }
+    url = 'ws://' + addr + '/ws';
+  } else {
+    url = (location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws';
+  }
+  if(auto){
+    $('dot').className='';
+    if($('loading').style.display !== 'block') $('loading').textContent = '正在重新连接…';
+    $('loading').style.display = 'block';
+  } else {
+    overlay('连接中…','正在与被控端握手');
+  }
+  // 新连接必须从明文 auth 开始：沿用上一会话的密钥会把 auth 加密发出，被控端解不开 → 误判 PIN 错误
+  key = null;
+  sendQ = Promise.resolve();
+  inQ = Promise.resolve();
+  // 旧连接的 onclose 必须断开回调，否则它会把刚发起的新连接又判定为断线
+  const old = ws;
+  ws = null;
+  if(old){
+    old.onopen = old.onmessage = old.onclose = old.onerror = null;
+    try{ old.close(); }catch(e){}
+  }
+  wsGen++;
+  lastRxAt = performance.now();
+  ws = new WebSocket(url);
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => { send({t:'auth', pin}); };
+  ws.onmessage = onMsg;
+  ws.onclose = onWsClose;
+  ws.onerror = () => {};
+  // 握手卡死（对端不可达时浏览器可能长时间停在 CONNECTING，永远不触发 onclose）→ 超时后主动放弃这次尝试
+  const thisWs = ws;
+  setTimeout(()=>{ if(ws === thisWs && ws.readyState === 0){ try{ ws.close(); }catch(e){} } }, 4000);
+}
+
+function onWsClose(ev){
+  const wasAuthed = authed, ended = endNotified || userEnded;
+  connected = authed = false;
+  document.body.classList.add('offline');
+  $('dot').className = 'err';
+  $('loading').style.display = 'none';
+  closeStream();
+  clearInterval(pingTimer); clearInterval(statTimer);
+  resetLinkUi();                          // 会先撤掉定格，下面按需重新定格
+  if(wasAuthed && !ended) freezeFrame();  // 重连期间保留最后一帧，页面不再“卡住不动”
+  try{ jm && jm.destroy(); }catch(e){}
+  jm = null; lastPts = null; lastCfg = null; firstFrameSeen = false;
+  lastFrameAt = 0; lastDecoded = 0; lastDecodedAt = 0;
+  abandonInterruptedUploads();
+  if(ended) return;
+  scheduleReconnect(ev && ev.code);
+}
+
+/** 断线重连：首次连接最多试 5 次；建立过会话后一直重试（间隔封顶 10 秒），
+    直到用户结束或 PIN 错误。页面在后台时不空转，回到前台立即连。 */
+function scheduleReconnect(code){
+  if(reconnectTimer || userEnded || endNotified) return;
+  if(!hadSession && reconnectTry >= MAX_RECONNECT){ giveUpReconnect(code); return; }
+  reconnectTry++;
+  const delay = hadSession
+    ? RETRY_DELAYS[Math.min(reconnectTry - 1, RETRY_DELAYS.length - 1)]
+    : (reconnectTry === 1 ? 400 : 2000);
+  showReconnectStatus(code);
+  if(document.hidden){ reconnectWhenVisible = true; return; }
+  reconnectWhenVisible = false;
+  reconnectTimer = setTimeout(()=>{ reconnectTimer = null; connect(true); }, delay);
+}
+function closeReason(code){
+  if(code === 1000) return '对端正常关闭';
+  if(code === 1001) return '页面离开';
+  if(code === 1006) return '浏览器关闭了连接';
+  return code ? '代码 '+code : '';
+}
+function showReconnectStatus(code){
+  const why = closeReason(code);
+  $('loading').textContent = (hadSession
+    ? '连接已断开，正在重连（第 '+reconnectTry+' 次）'
+    : '正在重试连接（'+reconnectTry+'/'+MAX_RECONNECT+'）') + (why ? ' · '+why : '');
+  $('loading').style.display = 'block';
+  $('dot').className = 'err';
+}
+function giveUpReconnect(code){
+  const extra = code ? '<br><span style="opacity:.7">（'+escHtml(closeReason(code))+'）</span>' : '';
+  overlay('未连接', '无法连接到被控端，请确认会话仍在进行、地址和 PIN 正确' + extra, true);
+}
+function onMsg(ev){
+  lastRxAt = performance.now();
+  if(ev.data instanceof ArrayBuffer){
+    const u8 = new Uint8Array(ev.data);
+    rawMsg++;
+    inQ = inQ.then(()=>decBin(u8)).then(handleBin).catch(()=>{ decFail++; });
+    return;
+  }
+  inQ = inQ.then(()=>decText(ev.data)).then(processMsg).catch(()=>{});
+}
+function processMsg(m){
+  if(!m) return;
+  switch(m.t){
+    case 'hello':
+      authed = true; connected = true; hadSession = true; userEnded = false;
+      document.body.classList.remove('offline');
+      clearTimeout(reconnectTimer); reconnectTimer = null; reconnectTry = 0;
+      lastRxAt = performance.now();
+      setScreenOff(false);   // 新连接先收起旧提示，被控端随后会发当前屏幕状态
+      hideTapHint(); watchPaint(); firstFrameAt = 0;
+      // 记住本次成功的 PIN：下次从相同地址打开（含被扫码器丢掉 #片段的链接）自动填好并连接
+      try{ if(/^\d{6}$/.test(curPin)) localStorage.setItem('pcPin:'+location.host, curPin); }catch(_){}
+      hideOverlay(); ensureJmuxer(); firstFrameSeen = false;
+      kfTries = 0; lastKfReq = performance.now();
+      $('loading').textContent = '画面加载中…'; $('loading').style.display='block';
+      $('stRes').textContent = m.w ? (m.w+'×'+m.h) : '';
+      $('qualitySel').disabled = false;
+      setPhoneQuality(m.quality || 'orig');
+      updateXferUi();
+      if(m.enc && m.salt){
+        deriveKey(m.salt).then(k=>{ key = k; $('dot').className='on';
+          toast('已连接' + (m.name ? '：' + m.name : ''));
+          send({t:'ready'});
+          if (!isRelay) openStream();   // 下行流：视频+文本统一走 HTTP 分帧流（绕开 WS 下行）
+          // 回执（file-end 等文本消息）走下行流，必须等新流建好后才能补发，否则会丢在旧流上
+          setTimeout(resumeUploads, 600);
+          requestEditRects();           // 下行流建好后取一次输入框位置（ready 时流还没建好）
+          // 视频流看门狗
+          setTimeout(()=>{
+            if (!connected) return;
+            if (streamRaw === 0 && rawMsg === 0) toast('未收到视频画面');
+            else if (decFail > 0 && videoBytesTotal === 0) toast('视频解密失败，请重新连接');
+            else if (videoBytesTotal === 0) toast('视频渲染失败，请刷新页面重试');
+          }, 6000);
+        })
+          .catch(()=>{ key = null; toast('已连接，但加密协商失败，安全性降低'); setTimeout(resumeUploads, 600); });
+      } else { key = null; $('dot').className='on'; toast('已连接' + (m.name ? '：' + m.name : '')); setTimeout(resumeUploads, 600); }
+      startTimers();
+      break;
+    case 'auth-fail':
+      authed = false; $('dot').className='err'; endNotified = true;
+      clearTimeout(reconnectTimer); reconnectTimer = null;
+      try{ localStorage.removeItem('pcPin:'+location.host); }catch(_){}
+      overlay('PIN 错误','请输入被控端屏幕上显示的 6 位 PIN', true);
+      try{ ws.close(); }catch(e){}
+      break;
+    case 'screen':   // 被控端息屏状态：黑屏时提示点一下画面唤醒
+      setScreenOff(!m.on);
+      break;
+    case 'vid-start':
+      $('stRes').textContent = m.w+'×'+m.h;
+      if(m.quality) setPhoneQuality(m.quality);
+      hideSwitching();   // 新分辨率已开始推流，撤掉「正在切换」提示
+      break;
+    case 'quality':   // 任一主控或被控端修改画质后，被控端广播，所有主控同步显示
+      if(m.preset){
+        setPhoneQuality(m.preset); showSwitching();
+        // 被控端检测到编码跟不上自己降的档：得告诉用户，不然会以为画质无故变糊
+        if(m.auto) toast('手机编码跟不上，已自动降到「'+(Q_NAME[m.preset]||m.preset)+'」');
+      }
+      break;
+    case 'editrects':   // 被控端当前屏幕上的输入框位置（只做缓存，绝不据此自己弹键盘）
+      editRects = Array.isArray(m.r) ? m.r : [];
+      break;
+    case 'ime':   // 被控端系统输入法弹出/收起：主控键盘跟着它走
+      clearTimeout(kbHideTimer);
+      if(m.on){
+        // 只有当主控是触屏设备时才需要本机键盘；带物理键盘的主控抢焦点反而添乱
+        const ae = document.activeElement;
+        const inForm = ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.tagName==='SELECT');
+        if(isTouch && authed && ae !== kb && !inForm) focusKb();
+        requestEditRects();   // 键盘顶起画面后输入框位置变了
+      } else {
+        // 输入法收起有几百毫秒的动画/闪动，等它稳定再决定是否收起主控键盘
+        kbHideTimer = setTimeout(()=>{ if(document.activeElement === kb) kb.blur(); }, 600);
+      }
+      break;
+    case 'pong':{
+      const rtt = performance.now() - m.ts; $('stLat').textContent = rtt.toFixed(0)+' ms'; break; }
+    case 'hstat':   // 被控端编码排队耗时：定位「不跟手」卡在哪一环（值大=被控编码慢，与网络无关）
+      $('stEnc').textContent = '编码 '+(m.lag|0)+'ms'; break;
+    case 'file-up-ack':{
+      const j = upJobs.get(m.id), s = $('st'+(protoCard.get(m.id) ?? m.id));
+      if(j && !j.sentAll && s) s.textContent = '被控端已开始接收…';
+      break; }
+    case 'fs-list': $('btnDl').style.display='none'; $('fsHint').textContent=''; renderFs(m); break;
+    case 'fs-err':
+      $('fsHint').textContent = m.s || '无法浏览被控端文件';
+      if(m.code==='noaccess'){ $('btnDl').style.display='block'; $('fsList').innerHTML=''; }
+      else toast(m.s || '操作失败');
+      break;
+    case 'file-progress':{
+      const j = upJobs.get(m.id); if(j) setBar(protoCard.get(m.id) ?? m.id, m.done, j.total); break; }
+    case 'file-meta': // 被控端→主控端 文件开始
+      dlId = m.id; dlName = m.name || ('file_'+m.id); dlParts = []; break;
+    case 'file-end':
+      pendingEnds.delete(m.id);
+      if(m.ok && dlId===m.id && dlParts.length){
+        try{
+          const blob = new Blob(dlParts);
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = dlName;
+          document.body.appendChild(a); a.click();
+          setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+          toast('文件已下载至主控端下载目录：' + dlName);
+        }catch(e){ toast('保存失败：'+e.message); }
+      }
+      if(upJobs.has(m.id) || m.path){
+        upJobs.delete(m.id);
+        const cid = protoCard.get(m.id) ?? m.id;
+        setBar(cid, 1, 1);
+        const st=$('st'+cid);
+        if(st){
+          if(m.ok){ st.textContent = '已保存到被控端：' + (m.path || m.name || ''); st.style.color = '#06775A'; }
+          else if(m.unknown){ st.textContent = '未收到保存回执，请到被控端「下载/随手控」确认'; st.style.color = 'var(--dim)'; }
+          else { st.textContent = '保存失败'; st.style.color = '#C9404F'; }
+        }
+        setTaskState(cid, m.ok ? 'done' : 'failed'); finishCard(cid);
+        if(m.ok && m.path) addCardBtn(cid,'打开文件保存位置',()=>{ if(!authed){ toast('请先连接'); return; } send({t:'open-fs-dir', path:'/sdcard/'+m.path}); toast('已请求打开文件夹'); });
+        if(m.ok) toast('已保存到被控端：' + (m.path || m.name || ''));
+      }
+      dlParts=[]; dlId=-1; break;
+    case 'clip':
+      if(!m.s){
+        if(m.auto || m.peek) break;
+        toast(m.e ? ('读取手机剪贴板失败：'+m.e) : '手机剪贴板为空，请先在手机复制内容');
+        break;
+      }
+      $('clipIn').value = m.s;
+      pushClipHist(m.s);
+      // 打开面板时的只读刷新：只更新记录，不覆盖主控端剪贴板
+      if(m.peek) break;
+      // 自动同步收到的是主控端自己刚写入的内容（外部跨设备剪贴板回写被控端）：静默跳过，避免环状重复提示
+      if(m.auto && isPcEcho(m.s)) break;
+      copyText(m.s).then(ok=>{
+        if(ok){ rememberPcClip(m.s); toast(m.auto ? '已同步手机内容到主控端剪贴板' : '已复制到主控端剪贴板'); }
+        else { const ci=$('clipIn'); ci.focus(); ci.select();
+          if(m.auto) toast('手机内容已同步到输入框'); }
+      });
+      break;
+    case 'clip-ok': toast('已写入手机剪贴板'); break;
+    case 'toast': toast(m.s||''); break;
+    case 'bye':
+      connected = false; $('dot').className='err'; $('loading').style.display='none';
+      document.body.classList.add('offline');
+      endNotified = true; userEnded = true;
+      clearTimeout(reconnectTimer); reconnectTimer = null;
+      clearInterval(pingTimer); clearInterval(statTimer); closeStream(); resetLinkUi();
+      overlay('会话已结束', m.reason || '被控端已结束会话', true);
+      try{ ws.close(); }catch(e){} ws=null;
+      break;
+  }
+}
+function routeStream(type, payload){
+  lastRxAt = performance.now();   // 心跳回执（pong）只走下行流，看门狗必须把流上的数据也算作存活
+  streamRaw++;
+  if (type === 0x10) { inQ = inQ.then(()=>decText(new TextDecoder().decode(payload))).then(processMsg).catch(()=>{}); }
+  else { inQ = inQ.then(()=>decBytes(payload)).then(handleBin).catch(()=>{ decFail++; }); }
+}
+async function openStream(){
+  const gen = ++streamGen;
+  try {
+    streamAbort = new AbortController();
+    const resp = await fetch('/stream?pin=' + encodeURIComponent(curPin), { signal: streamAbort.signal, cache: 'no-store' });
+    if (resp.ok && resp.body) {
+      const reader = resp.body.getReader();
+      let buf = new Uint8Array(0);
+      while (true) {
+        const r = await reader.read();
+        if (r.done) break;
+        if (buf.length === 0) buf = r.value;
+        else { const nb = new Uint8Array(buf.length + r.value.length); nb.set(buf); nb.set(r.value, buf.length); buf = nb; }
+        while (buf.length >= 5) {
+          const type = buf[0];
+          const len = ((buf[1]<<24)|(buf[2]<<16)|(buf[3]<<8)|buf[4]) >>> 0;
+          if (buf.length < 5 + len) break;
+          const payload = buf.subarray(5, 5 + len);
+          buf = buf.subarray(5 + len);
+          routeStream(type, payload);
+        }
+      }
+    }
+  } catch(e) {}
+  // 下行流结束（网络抖动/主机端清理）必须立刻重开：不重开的话看门狗 15 秒后
+  // 会把整条连接判死 → 断开重连 → 再断，形成周期性掉线。WS 本身没断，只补流即可
+  if(gen === streamGen && authed && connected && !isRelay && !userEnded && !endNotified){
+    setTimeout(()=>{ if(gen === streamGen && authed && connected) openStream(); }, 300);
+  }
+}
+function closeStream(){ streamGen++; try { streamAbort && streamAbort.abort(); } catch(e){} streamAbort = null; }
+
+/** 画面卡死（仍能操作）时自动重建解码器与下行流，无需用户刷新/重连 */
+function restartVideo(reason){
+  if(!authed || !connected || isRelay) return;
+  const now = performance.now();
+  if(now - recoverAt < 8000) return;
+  recoverAt = now;
+  toast(reason || '画面无响应，正在自动恢复');
+  freezeFrame();
+  closeStream();
+  try{ jm && jm.destroy(); }catch(e){}
+  jm = null; lastPts = null; lastCfg = null; firstFrameSeen = false;
+  lastFrameAt = 0; lastDecoded = 0; lastDecodedAt = now;
+  ensureJmuxer();
+  $('loading').style.display = 'block';
+  setTimeout(()=>{ if(authed && connected) openStream(); }, 300);
+}
+function handleBin(u8){
+  if(!u8 || !u8.length) return;
+  bytesAcc += u8.length;
+  videoBytesTotal += u8.length;
+  const type = u8[0];
+  if(type === 0x01 && jm){
+    // 视频帧：[4B 采集时间戳 ms BE][H.264]。按真实帧间隔设置 duration，
+    // 但单帧最长只挂 100ms：Surface 编码器静止时不出帧，静止后的首帧间隔=静止时长，
+    // 不封顶会把这段空白注入播放时间轴，造成长达 1 秒的人为延迟
+    const pts = ((u8[1]<<24)|(u8[2]<<16)|(u8[3]<<8)|u8[4]) >>> 0;
+    const payload = u8.subarray(5);
+    try{
+      if(lastPts === null) jm.feed({video: payload});
+      else jm.feed({video: payload, duration: Math.min(100, Math.max(1, (pts - lastPts) >>> 0))});
+    }catch(e){}
+    lastPts = pts;
+    lastFrameAt = performance.now();
+    if(lastDecodedAt === 0) lastDecodedAt = lastFrameAt;
+    if(!firstFrameSeen){
+      firstFrameSeen = true; firstFrameAt = performance.now();
+      $('loading').style.display='none'; unfreeze();
+      kickVideoPlay();   // 首帧到了就立刻起播；若被浏览器拦截，会转为「点一下画面开始播放」提示
+      setTimeout(()=>{ if(authed && video.paused) showTapHint(); }, 500);
+    }
+  }
+  else if(type === 0x03 && jm){
+    // SPS/PPS 配置包。jmuxer 2.x 只解析一次 SPS/PPS，切画质/旋转后分辨率变了必须重建 MSE，
+    // 否则新分辨率的帧无法解码 → 黑屏（但触控仍可用）。配置字节变化时销毁重建 JMuxer。
+    const cfg = u8.subarray(1);
+    if(lastCfg && !sameBytes(lastCfg, cfg)){
+      freezeFrame();   // 定格旧画面，避免重建 MSE 期间黑屏
+      try{ jm.destroy(); }catch(e){}
+      jm = null; ensureJmuxer();
+      firstFrameSeen = false;   // 新分辨率首帧到达后再撤掉定格
+    }
+    lastCfg = cfg.slice();
+    lastPts = null;
+    try{ jm.feed({video: cfg}); }catch(e){}
+  }
+  else if(type === 0x02 && dlId >= 0){ dlParts.push(u8.subarray(1)); }
+}
+function startTimers(){
+  pingTimer = setInterval(()=> send({t:'ping', ts:performance.now()}), 2000);
+  statTimer = setInterval(()=>{
+    const now = performance.now(), dt = (now-lastBytesT)/1000;
+    if(dt>0.5){ $('stBps').textContent = Math.round(bytesAcc*8/1000/dt) + ' kbps'; bytesAcc=0; lastBytesT=now; }
+    // 连接保活：ping 每 2 秒一次，15 秒内没有任何接收（WS 或下行流 TLV 帧）才认为链路已死
+    // （常见于切后台/切网络）。pong 只走下行流，所以 routeStream 也刷新 lastRxAt；
+    // 主动关掉走自动重连，否则页面会一直停在最后一帧，看起来像卡死
+    if(authed && !document.hidden && now - lastRxAt > 15000){
+      toast('连接无响应，正在重连…');
+      try{ ws && ws.close(); }catch(e){}
+    }
+    // 低延迟追帧：播放进度落后于已缓存的画面时，先加速播放平滑追赶，落后太多才硬跳。
+    // 阈值压到 0.5s 以内：MSE 起播本身就有几百毫秒缓冲，不追就会一直慢半拍；
+    // 硬跳带 2s 冷却——高码率下解码跟不上时若每个周期都跳会形成 seek 风暴，画面反而卡死
+    if(video.buffered && video.buffered.length){
+      const end = video.buffered.end(video.buffered.length-1);
+      const behind = end - video.currentTime;
+      const nowMs = performance.now();
+      if(behind > 0.4 && nowMs - lastJump > 2500){ video.currentTime = end - 0.02; video.playbackRate = 1; lastJump = nowMs; }
+      else if(behind > 0.18){ if(video.playbackRate !== 1.4) video.playbackRate = 1.4; }
+      else if(behind > 0.05){ if(video.playbackRate !== 1.1) video.playbackRate = 1.1; }
+      else if(video.playbackRate !== 1){ video.playbackRate = 1; }
+    }
+    if(video.paused) kickVideoPlay();
+    // 已收到帧但画面没真正上屏（play() 没报错、内核等手势才绘制）：静态提示点击即可，
+    // 不自动 seek 缓冲末端——MSE 下频繁 seek 反而可能让播放停在原处
+    if(authed && firstFrameSeen && !painted && !screenOff && now - firstFrameAt > 2500) showTapHint();
+    // 数据在走却始终没有首帧：多为连接瞬间的关键帧丢失（静止画面编码器不出新帧）。
+    // 主动向被控端要关键帧，最多 3 次，避免一直停在黑屏等待。
+    if(authed && connected && !firstFrameSeen && kfTries < 3 && now - lastKfReq > 2000){
+      kfTries++; lastKfReq = now; send({t:'kf'});
+    }
+    // 卡死检测：新帧还在到达，但解码帧数 6 秒没有增加 → 重建解码器/下行流。
+    // 用解码帧数而不是播放进度，避免追帧 seek 造成的假恢复；静止画面编码器不出帧，也不会误触发。
+    // 阈值放宽到 6 秒：高码率下一两秒的解码抖动不再触发整条流重建（重建会让画面重新缓冲）
+    let decoded = null;
+    try{ if(video.getVideoPlaybackQuality) decoded = video.getVideoPlaybackQuality().totalVideoFrames; }catch(e){}
+    if(decoded == null && typeof video.webkitDecodedFrameCount === 'number') decoded = video.webkitDecodedFrameCount;
+    if(decoded != null){
+      if(decoded !== lastDecoded){ lastDecoded = decoded; lastDecodedAt = now; }
+      if(authed && connected && !document.hidden && lastFrameAt > lastDecodedAt && now - lastDecodedAt > 6000)
+        restartVideo('画面无响应，正在自动恢复');
+      else if(video.error) restartVideo('画面异常，正在自动恢复');
+    }
+  }, 200);
+}
+
+/* ================= pointer → touch ================= */
+function norm(e){
+  const r = video.getBoundingClientRect();
+  const vw = video.videoWidth || 9, vh = video.videoHeight || 16;
+  const s = Math.min(r.width/vw, r.height/vh);
+  const dw = vw*s, dh = vh*s, ox = (r.width-dw)/2, oy = (r.height-dh)/2;
+  const clamp = v => Math.max(0, Math.min(1, v));
+  return { x: clamp((e.clientX-r.left-ox)/dw), y: clamp((e.clientY-r.top-oy)/dh) };
+}
+let tapAt = 0, tapX = 0, tapY = 0, tapMoved = false;
+touch.addEventListener('pointerdown', e => {
+  if(!authed) return;
+  e.preventDefault();
+  const p = norm(e); pts.set(e.pointerId, p);
+  if(e.pointerType === 'touch'){ tapAt = performance.now(); tapX = e.clientX; tapY = e.clientY; tapMoved = false; }
+  try{ touch.setPointerCapture(e.pointerId); }catch(_){}
+  send({t:'touch', a:'down', p:e.pointerId & 255, x:p.x, y:p.y});
+});
+touch.addEventListener('pointermove', e => {
+  if(!authed || !pts.has(e.pointerId)) return;
+  e.preventDefault();
+  const now = performance.now();
+  if(e.pointerType === 'touch' && Math.hypot(e.clientX-tapX, e.clientY-tapY) > 10) tapMoved = true;
+  if(now - lastMoveSent < 16) return;
+  lastMoveSent = now;
+  const p = norm(e); pts.set(e.pointerId, p);
+  send({t:'touch', a:'move', p:e.pointerId & 255, x:p.x, y:p.y});
+});
+function up(e){
+  if(!authed || !pts.has(e.pointerId)) return;
+  const p = norm(e); pts.delete(e.pointerId);
+  send({t:'touch', a:'up', p:e.pointerId & 255, x:p.x, y:p.y});
+  // 只有点击落在远端输入框上才唤起本机输入法（需要打字时也可点底部「输入」）；
+  // 位置表没命中也不要紧：被控端系统输入法弹出后会发 ime 消息，主控再跟上
+  if(e.type === 'pointerup' && e.pointerType === 'touch' &&
+     !tapMoved && performance.now() - tapAt < 400){
+    if(inEditRect(p)) focusKb();
+    requestEditRects();   // 屏幕可能刚变过，刷新输入框位置，下一次点击才判断得准
+  }
+}
+function inEditRect(p){
+  for(const r of editRects)
+    if(p.x >= r[0] && p.x <= r[2] && p.y >= r[1] && p.y <= r[3]) return true;
+  return false;
+}
+function requestEditRects(){
+  clearTimeout(editQTimer);
+  editQTimer = setTimeout(()=>{ if(authed) send({t:'editq'}); }, 400);
+}
+touch.addEventListener('pointerup', up);
+touch.addEventListener('pointercancel', up);
+touch.addEventListener('contextmenu', e=>e.preventDefault());
+touch.addEventListener('wheel', e => {
+  if(!authed) return; e.preventDefault();
+  // 按像素累计再换算：一格（约 100px）≈ 2 个单位，触控板细碎滑动会先累积
+  const unit = e.deltaMode===1 ? 33 : (e.deltaMode===2 ? 300 : 1);
+  wheelAcc += e.deltaY * unit;
+  if(!wheelTimer) wheelTimer = setTimeout(()=>{
+    const n = Math.max(-8, Math.min(8, Math.round(wheelAcc / 60)));
+    wheelAcc = 0; wheelTimer = null;
+    if(n) send({t:'scroll', dy:n});
+  }, 50);
+}, {passive:false});
+
+/* ================= keyboard ================= */
+const kb = $('kb');
+function focusKb(){ kb.focus({preventScroll:true}); }
+kb.addEventListener('compositionstart', ()=> composing = true);
+kb.addEventListener('compositionend', ()=>{ composing = false; flushKb(); });
+kb.addEventListener('input', ()=>{ if(!composing) flushKb(); });
+function flushKb(){
+  const v = kb.value; kb.value='';
+  if(v && authed) send({t:'text', s:v});
+}
+kb.addEventListener('keydown', e => {
+  if(!authed) return;
+  const map = { Enter:'enter', Backspace:'del', Tab:'tab', Escape:'esc',
+    ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' };
+  if(map[e.key]){ e.preventDefault(); if(!composing) send({t:'key', k:map[e.key]}); }
+  else if(e.key===' ' && !composing){ e.preventDefault(); send({t:'text', s:' '}); }
+});
+window.addEventListener('keydown', e => {
+  const ae = document.activeElement;
+  const inForm = ae && (ae.tagName==='INPUT' || ae.tagName==='TEXTAREA' || ae.tagName==='SELECT');
+  if(connected && ae !== kb && !inForm &&
+     !e.ctrlKey && !e.metaKey && !e.altKey && e.key.length>0){ focusKb(); }
+});
+
+/* ================= keys bar ================= */
+document.querySelectorAll('#keys button[data-k]').forEach(b => {
+  b.addEventListener('click', ()=>{
+    const k = b.dataset.k;
+    if(authed) send({t:'key', k});
+  });
+});
+
+/* ================= files ================= */
+$('btnFiles').onclick = ()=>{ $('filePanel').classList.add('open'); syncPanelLayout(); if(authed) fsReq(fsCur||''); };
+$('btnCloseFiles').onclick = ()=>{ $('filePanel').classList.remove('open'); syncPanelLayout(); };
+$('drop').onclick = ()=> $('fileInput').click();
+$('btnPickFiles').onclick = ()=> $('fileInput').click();
+$('btnPickFolder').onclick = ()=> $('folderInput').click();
+$('fileInput').onchange = e => { [...e.target.files].forEach(f=>upload(f,'')); e.target.value=''; };
+$('folderInput').onchange = e => {
+  [...e.target.files].forEach(f=>{
+    const rp = f.webkitRelativePath || f.name;
+    const rel = rp.includes('/') ? rp.slice(0, rp.lastIndexOf('/')) : '';
+    upload(f, rel);
+  });
+  e.target.value='';
+};
+['dragover','dragenter'].forEach(t => $('drop').addEventListener(t, e=>{ e.preventDefault(); $('drop').classList.add('over'); }));
+['dragleave','drop'].forEach(t => $('drop').addEventListener(t, e=>{ e.preventDefault(); $('drop').classList.remove('over'); }));
+$('drop').addEventListener('drop', e => [...e.dataTransfer.files].forEach(f=>upload(f,'')));
+
+/* ---- 被控端文件管理：主控侧浏览被控端存储（借鉴小米妙享），点文件夹进入、点文件下载 ---- */
+let fsCur='', fsParent='';
+function fsReq(path){ if(authed) send({t:'fs-list', path:path||''}); else toast('请先连接'); }
+function fsJoin(base,name){ return base.replace(/\/+$/,'')+'/'+name; }
+function fmtSize(n){ if(n<1024) return n+' B'; if(n<1048576) return (n/1024).toFixed(1)+' KB'; if(n<1073741824) return (n/1048576).toFixed(1)+' MB'; return (n/1073741824).toFixed(2)+' GB'; }
+function renderFs(m){
+  fsLast=m;
+  fsCur=m.path||''; fsParent=m.parent||'';
+  $('fsPath').textContent=fsCur||'/sdcard';
+  $('fsUp').disabled=!fsParent;
+  const box=$('fsList'); box.innerHTML='';
+  if(fsParent){
+    const up=document.createElement('div'); up.className='fsrow dir';
+    const n=document.createElement('span'); n.className='fsname'; n.textContent='.. 返回上级';
+    up.appendChild(n); up.onclick=()=>fsReq(fsParent); box.appendChild(up);
+  }
+  const es=m.entries||[];
+  es.forEach(e=>{
+    const full=fsJoin(fsCur,e.name);
+    const row=document.createElement('div'); row.className='fsrow'+(e.dir?' dir':'');
+    if(fsMulti && !e.dir){
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=fsSel.has(full);
+      cb.style.marginRight='6px'; cb.onclick=ev=>ev.stopPropagation();
+      cb.onchange=()=>{ if(cb.checked) fsSel.add(full); else fsSel.delete(full); updateFsSel(); };
+      row.appendChild(cb);
+    }
+    const nm=document.createElement('span'); nm.className='fsname'; nm.textContent=e.name;
+    const meta=document.createElement('span'); meta.className='fsmeta'; meta.textContent=e.dir?'目录':fmtSize(e.size||0);
+    row.appendChild(nm); row.appendChild(meta);
+    if(e.dir) row.onclick=()=>fsReq(full);
+    else if(fsMulti) row.onclick=()=>{ if(fsSel.has(full)) fsSel.delete(full); else fsSel.add(full); renderFs(m); updateFsSel(); };
+    else row.onclick=()=>{ if(authed) fsDownload(full, e.name, e.size||0); };
+    box.appendChild(row);
+  });
+  if(!es.length){ const em=document.createElement('div'); em.className='hint'; em.style.padding='10px'; em.textContent='（空目录）'; box.appendChild(em); }
+}
+function updateFsSel(){
+  $('fsSelBar').style.display = fsMulti ? 'flex' : 'none';
+  $('fsSelCount').textContent = fsSel.size ? ('已选 '+fsSel.size+' 个文件') : '';
+  $('fsDlSel').disabled = !fsSel.size;
+  $('fsDlSel').textContent = fsSel.size ? ('下载所选('+fsSel.size+')') : '下载所选';
+}
+/* 下载分发：先弹确认框防误点；直连走专用 HTTP（带进度/速度，不挤视频流），中继回退旧 fs-get 流通道。
+   同一文件正在下载/已暂停时再点不会重复加任务（避免连点几下堆出一堆重复任务） */
+function fsDownload(path, name, size, skipConfirm){
+  if(canHttp()){
+    for(const t of tasks.values()) if(t.kind==='down' && t.path===path && (t.state==='active'||t.state==='paused')){
+      toast('该文件已在任务列表中：'+name); openTaskPanel(); return;
+    }
+  }
+  if(!skipConfirm && !confirm('下载「'+name+'」'+(size>0?'（'+fmtSize(size)+'）':'')+' 到本机？')) return;
+  if(canHttp()) httpDownload(path, name, size);
+  else { send({t:'fs-get', path}); toast('正在下载：'+name); }
+}
+$('fsUp').onclick=()=>{ if(fsParent) fsReq(fsParent); };
+$('fsRefresh').onclick=()=>fsReq(fsCur||'');
+$('fsMultiBtn').onclick=()=>{ fsMulti=!fsMulti; if(!fsMulti) fsSel.clear(); $('fsMultiBtn').textContent=fsMulti?'退出多选':'多选'; fsReq(fsCur||''); updateFsSel(); };
+$('fsSelClear').onclick=()=>{ fsSel.clear(); fsReq(fsCur||''); updateFsSel(); };
+$('fsDlSel').onclick=()=>{
+  if(!fsSel.size) return;
+  if(!confirm('下载所选 '+fsSel.size+' 个文件到本机？')) return;
+  const items=[...fsSel]; fsSel.clear(); updateFsSel();
+  items.forEach(p=>{ const name=p.slice(p.lastIndexOf('/')+1); fsDownload(p, name, 0, true); });
+  toast('开始下载 '+items.length+' 个文件');
+};
+$('fsSelAll').onclick=()=>{
+  if(!fsLast) return;
+  const files=(fsLast.entries||[]).filter(e=>!e.dir).map(e=>fsJoin(fsLast.path||'',e.name));
+  const allIn=files.length>0 && files.every(p=>fsSel.has(p));
+  if(allIn) files.forEach(p=>fsSel.delete(p)); else files.forEach(p=>fsSel.add(p));
+  renderFs(fsLast); updateFsSel();
+};
+
+/* ================= 传输任务：文件面板「任务」入口，统一进度/暂停/继续/取消 ================= */
+/* 宽屏桌面下面板是停靠栏：打开时标记 body.panel，让画面区域跟着收缩（窄屏/独立窗口仍是覆盖式） */
+function syncPanelLayout(){
+  document.body.classList.toggle('panel',
+    $('filePanel').classList.contains('open') || $('taskPanel').classList.contains('open'));
+  // 中继模式文件走 WS（始终加密），这个开关只对直连 HTTP 通道有效，直接隐藏免误解
+  const er = $('encRow'); if(er) er.style.display = canHttp() ? '' : 'none';
+}
+function openTaskPanel(){ $('taskPanel').classList.add('open'); syncPanelLayout(); }
+function updateTaskUi(){
+  let n=0; for(const t of tasks.values()) if(t.state==='queued'||t.state==='active'||t.state==='paused') n++;
+  const b=$('taskBadge'); b.style.display=n?'inline-block':'none'; b.textContent=n;
+  $('taskEmpty').style.display=$('fileList').children.length?'none':'';
+}
+function setTaskState(id,state){ const t=tasks.get(id); if(t){ t.state=state; updateTaskUi(); } }
+function setBar(id, done, total){
+  const el = document.querySelector('#bar'+id+' .bar > i');
+  if(el && total>0) el.style.width = Math.min(100, done/total*100).toFixed(1)+'%';
+}
+function addCard(id, title){
+  const d=document.createElement('div'); d.className='fcard'; d.id='bar'+id;
+  const b=document.createElement('b'); b.textContent=title; d.appendChild(b);
+  const bar=document.createElement('div'); bar.className='bar'; bar.appendChild(document.createElement('i')); d.appendChild(bar);
+  const row=document.createElement('div'); row.style.marginTop='6px';
+  const st=document.createElement('span'); st.className='hint'; st.id='st'+id; st.textContent='等待中…';
+  const sp=document.createElement('span'); sp.className='hint'; sp.id='sp'+id; sp.style.marginLeft='8px';
+  row.appendChild(st); row.appendChild(sp); d.appendChild(row);
+  const btns=document.createElement('div'); btns.className='tbtns'; d.appendChild(btns);
+  $('fileList').prepend(d); updateTaskUi(); return d;
+}
+function finishCard(id){ const btns=document.querySelector('#bar'+id+' .tbtns'); if(btns) btns.querySelectorAll('.tpause,.tcancel').forEach(x=>x.remove()); }
+function addCardBtn(id,label,onclick){ const btns=document.querySelector('#bar'+id+' .tbtns'); if(!btns) return; const b=document.createElement('button'); b.textContent=label; b.onclick=onclick; btns.appendChild(b); }
+function abortUploadXhrs(t){
+  if(t.xhrs) t.xhrs.forEach(x=>{ try{ x.abort(); }catch(_){} });
+  else if(t.xhr) { try{ t.xhr.abort(); }catch(_){} }
+}
+function wireTaskCtrls(id,t){  const btns=document.querySelector('#bar'+id+' .tbtns'); if(!btns) return;
+  if(t.pause){
+    const p=document.createElement('button'); p.className='tpause'; p.textContent='暂停';
+    p.onclick=()=>{ if(t.state==='paused'){ if(t.resume) t.resume(); p.textContent='暂停'; }
+      else if(t.state==='active'||t.state==='queued'){ t.pause(); p.textContent='继续'; } };
+    btns.appendChild(p);
+  }
+  const c=document.createElement('button'); c.className='tcancel'; c.textContent='取消';
+  c.onclick=()=>{ if(t.state==='done'||t.state==='failed'||t.state==='cancelled') return; if(t.cancel) t.cancel(); };
+  btns.appendChild(c);
+}
+$('btnTasks').onclick=()=>{ $('taskPanel').classList.toggle('open'); syncPanelLayout(); };
+$('btnCloseTasks').onclick=()=>{ $('taskPanel').classList.remove('open'); syncPanelLayout(); };
+$('btnClearTasks').onclick=()=>{
+  for(const [id,t] of [...tasks]) if(t.state==='done'||t.state==='failed'||t.state==='cancelled'){
+    const el=$('bar'+id); if(el) el.remove(); tasks.delete(id);
+  }
+  updateTaskUi();
+};
+
+/* 文件传输加密开关：只影响直连 HTTP 通道（/upload、/file）的文件内容；
+   画面/触控/剪贴板始终加密。默认开启，选择记在本机浏览器。 */
+let xferEncOn = true;
+try{ xferEncOn = localStorage.getItem('xferEnc') !== '0'; }catch(_){}
+function syncEncUi(){
+  xferEncOn = $('xferEnc').checked;
+  $('encNote').textContent = xferEncOn ? '安全传输' : '快速传输';
+  $('encNote').classList.toggle('off', !xferEncOn);
+  try{ localStorage.setItem('xferEnc', xferEncOn?'1':'0'); }catch(_){}
+}
+$('xferEnc').checked = xferEncOn;
+syncEncUi();
+$('xferEnc').onchange = ()=>{
+  syncEncUi();
+  toast(xferEncOn ? '文件传输加密已开启' : '文件传输加密已关闭（文件内容不加密）');
+};
+
+async function upload(file, rel){
+  const id='u'+(++taskSeq);
+  const item={file, rel:rel||'', id, enc: xferEncOn};   // 排队时定下模式，之后切换开关不影响已在队列里的文件
+  addCard(id, '↑ '+(rel?rel+'/':'')+file.name);
+  const online = authed && ws && ws.readyState === 1;
+  const st=$('st'+id);
+  st.textContent = online ? '排队中，将自动发送' : '等待连接，连上后自动发送';
+  const t={kind:'up', state:'queued'}; tasks.set(id,t);
+  t.pause=()=>{
+    if(t.state==='queued'){ const i=upQueue.indexOf(item); if(i>=0) upQueue.splice(i,1); setTaskState(id,'paused'); st.textContent='已暂停，点「继续」重新发送'; }
+    else if(t.state==='active'){ t.wantPause=true; abortUploadXhrs(t); }
+  };
+  t.resume=()=>{ if(t.state!=='paused') return; t.wantPause=false; upQueue.unshift(item); setTaskState(id,'queued'); st.textContent='排队中，将自动发送'; pumpUploads(); };
+  t.cancel=()=>{ t.cancelled=true; const i=upQueue.indexOf(item); if(i>=0) upQueue.splice(i,1); abortUploadXhrs(t); setTaskState(id,'cancelled'); st.textContent='已取消'; finishCard(id); };
+  if(canHttp()) wireTaskCtrls(id,t);
+  else {  // 中继旧通道不支持暂停，只给取消
+    const c=document.createElement('button'); c.className='tcancel'; c.textContent='取消';
+    c.onclick=()=>{ if(t.state!=='cancelled'&&t.state!=='done'&&t.state!=='failed') t.cancel(); };
+    document.querySelector('#bar'+id+' .tbtns').appendChild(c);
+  }
+  upQueue.push(item);
+  openTaskPanel();
+  toast(online ? '已加入发送任务：'+file.name : '已加入发送任务，连接后自动发送：'+file.name);
+  pumpUploads();
+}
+function pumpUploads(){
+  if(upBusy || !upQueue.length) return;
+  if(!authed || !ws || ws.readyState !== 1) return;   // 断线时先排队，重连 ready 后自动继续
+  upBusy = true;
+  const item = upQueue.shift();
+  const task = canHttp() ? uploadHttp(item) : uploadOne(item);
+  task.finally(()=>{ upBusy = false; setTimeout(pumpUploads, 250); });
+}
+/* 专用 HTTP 上传：文件切块加密拼成 Blob，XHR 单独连接发送（原生上传进度），
+   不再与触控指令挤同一条 WS 队列；被控端流式解密直写接收目录。
+   暂停=中断本次发送（被控端自动清理半截文件），继续=重新排队从头发送（Blob 已缓存，不用重新加密）。 */
+async function uploadHttp(item){
+  if(item.file.size >= 2*1024*1024) return uploadHttpParts(item);
+  return uploadHttpSingle(item);
+}
+/* 明文帧：4 字节大端长度 + 文件切片。Blob 组合只引用原文件，不读取、不复制数据。 */
+function pushPlainFrame(parts, file, off, end){
+  const n = end - off;
+  const h = new Uint8Array(4);
+  h[0]=(n>>>24)&0xff; h[1]=(n>>>16)&0xff; h[2]=(n>>>8)&0xff; h[3]=n&0xff;
+  parts.push(h, file.slice(off, end));
+}
+/* 明文分块：按体积自适应，1MB~4MB。3 段并行的目标下保持每段 3~4 帧，
+   帧太碎徒增开销，帧太大又会让被控端单次分配内存过多（上限 8MB）。 */
+function plainChunkSize(size){
+  return Math.min(4*1024*1024, Math.max(1024*1024, Math.ceil(size/12)));
+}
+/* 小文件：一次 POST 发完。 */
+async function uploadHttpSingle(item){
+  const {file, rel, id} = item;
+  const t = tasks.get(id);
+  const st = $('st'+id), sp = $('sp'+id);
+  setTaskState(id,'active');
+  const encMode = item.enc !== false;
+  // 明文直接交文件切片给浏览器边读边发；加密才需要先读块加密
+  const CH = encMode ? 256*1024 : plainChunkSize(file.size);
+  if(!item.blob){
+    if(st) st.textContent = encMode ? '准备加密…' : '准备发送…';
+    const parts = [];
+    if(!encMode){
+      for(let off=0; off<file.size; off+=CH) pushPlainFrame(parts, file, off, Math.min(off+CH, file.size));
+    } else {
+      try{
+        for(let off=0; off<file.size; off+=CH){
+          if(t && t.cancelled) return;
+          const buf = new Uint8Array(await file.slice(off, off+CH).arrayBuffer());
+          const body = await encBytes(buf);
+          const frame = new Uint8Array(4 + body.length);
+          frame[0]=(body.length>>>24)&0xff; frame[1]=(body.length>>>16)&0xff; frame[2]=(body.length>>>8)&0xff; frame[3]=body.length&0xff;
+          frame.set(body, 4); parts.push(frame);
+          if((off/CH)%16===0){ if(st) st.textContent='准备中 '+Math.min(99,Math.round(off/Math.max(1,file.size)*100))+'%'; await new Promise(r=>setTimeout(r,0)); }
+        }
+      }catch(e){ if(st){ st.textContent='读取文件失败：'+e.message; st.style.color='#C9404F'; } setTaskState(id,'failed'); finishCard(id); return; }
+    }
+    item.blob = new Blob(parts, {type:'application/octet-stream'});
+  }
+  if(t && t.cancelled) return;
+  if(t && t.wantPause){ setTaskState(id,'paused'); if(st) st.textContent='已暂停，点「继续」重新发送'; return; }
+  const q = new URLSearchParams({pin:curPin, name:file.name, dest:$('upDest').value, rel:rel});
+  if(!encMode) q.set('enc','0');
+  if(st) st.textContent='正在发送…';
+  await new Promise(resolve=>{
+    const xhr = new XMLHttpRequest(); if(t) t.xhr = xhr;
+    xhr.open('POST', '/upload?'+q.toString());
+    xhr.responseType = 'arraybuffer';
+    let lastT=performance.now(), lastLoaded=0, speed=0;
+    xhr.upload.onprogress = e=>{
+      const total = e.total || item.blob.size, now = performance.now();
+      if(now-lastT>=400){ speed=(e.loaded-lastLoaded)/((now-lastT)/1000); lastT=now; lastLoaded=e.loaded; }
+      setBar(id, e.loaded, total);
+      if(st) st.textContent='正在发送 '+Math.min(100,Math.round(e.loaded/Math.max(1,total)*100))+'%';
+      if(sp) sp.textContent=fmtSpeed(speed)+' · 剩余 '+fmtEta((total-e.loaded)/Math.max(1,speed));
+    };
+    xhr.onload = async ()=>{
+      if(t) t.xhr = null;
+      try{
+        const raw = new Uint8Array(xhr.response);
+        const plain = encMode ? await decBytes(raw) : raw;
+        const j = JSON.parse(new TextDecoder().decode(plain));
+        setBar(id,1,1);
+        if(j.ok){
+          if(st){ st.textContent='已保存到被控端：'+(j.path||j.name); st.style.color='#06775A'; }
+          if(sp) sp.textContent='';
+          setTaskState(id,'done'); finishCard(id);
+          if(j.path) addCardBtn(id,'打开文件保存位置',()=>{ if(!authed){ toast('请先连接'); return; } send({t:'open-fs-dir', path:'/sdcard/'+j.path}); toast('已请求打开文件夹'); });
+          toast('已保存到被控端：'+(j.path||j.name));
+        }
+        else { if(st){ st.textContent='保存失败：'+(j.err||''); st.style.color='#C9404F'; } setTaskState(id,'failed'); finishCard(id); }
+      }catch(e){ if(st){ st.textContent='回执解析失败：'+e.message; st.style.color='#C9404F'; } setTaskState(id,'failed'); finishCard(id); }
+      resolve();
+    };
+    xhr.onabort = ()=>{
+      if(t) t.xhr = null;
+      if(t && t.cancelled){ resolve(); return; }   // cancel() 已更新卡片
+      if(t && t.wantPause){ setTaskState(id,'paused'); if(st) st.textContent='已暂停，点「继续」从头重发（被控端半截文件已自动清理）'; if(sp) sp.textContent=''; resolve(); return; }
+      requeueUpload(item, '发送被中断');
+      resolve();
+    };
+    xhr.onerror = ()=>{
+      if(t) t.xhr=null;
+      if(t && t.cancelled){ resolve(); return; }
+      if(authed && connected && !document.hidden){
+        if(st){ st.textContent='发送失败，请重试'; st.style.color='#C9404F'; }
+        setTaskState(id,'failed'); finishCard(id);
+      } else requeueUpload(item, '连接中断');
+      resolve();
+    };
+    xhr.send(item.blob);
+  });
+}
+/* ≥2MB：切 3 段并行上传（单条连接常跑不满 WiFi），被控端按偏移写临时文件，三段到齐后统一落盘。
+   每段各自加密、各自带 4 字节长度帧头；任一段失败即整体失败，不会留下半份文件。 */
+async function uploadHttpParts(item){
+  const {file, rel, id} = item;
+  const t = tasks.get(id), st = $('st'+id), sp = $('sp'+id);
+  setTaskState(id,'active');
+  const encMode = item.enc !== false;
+  const CH = encMode ? 256*1024 : plainChunkSize(file.size);
+  const totalChunks = Math.max(1, Math.ceil(file.size/CH));
+  const n = Math.min(3, totalChunks);
+  const base = Math.floor(totalChunks/n), rem = totalChunks%n;
+  const segs = []; let chunk = 0;
+  for(let i=0;i<n;i++){ const cnt = base + (i<rem?1:0); segs.push({idx:i, off:chunk*CH, chunks:cnt, blob:null, xhr:null, loaded:0}); chunk += cnt; }
+  if(item.parts && item.partsEnc === encMode){
+    item.parts.forEach((p,i)=>{ if(segs[i]){ segs[i].off=p.off; segs[i].blob=p.blob; } });
+  } else {
+    item.parts = null;
+    for(let i=0;i<segs.length;i++){
+      const seg = segs[i], parts = [];
+      if(!encMode){
+        // 明文：只拼帧头和文件切片引用，交给浏览器边读边发
+        for(let j=0;j<seg.chunks;j++){
+          if(t && t.cancelled) return;
+          const off = seg.off + j*CH;
+          pushPlainFrame(parts, file, off, Math.min(off+CH, file.size));
+        }
+      } else {
+        for(let j=0;j<seg.chunks;j++){
+          if(t && t.cancelled) return;
+          if(st) st.textContent = '准备加密… '+Math.min(99,Math.round((i*base+j)/totalChunks*100))+'%';
+          const off = seg.off + j*CH;
+          const buf = new Uint8Array(await file.slice(off, Math.min(off+CH, file.size)).arrayBuffer());
+          const body = await encBytes(buf);
+          const frame = new Uint8Array(4 + body.length);
+          frame[0]=(body.length>>>24)&0xff; frame[1]=(body.length>>>16)&0xff; frame[2]=(body.length>>>8)&0xff; frame[3]=body.length&0xff;
+          frame.set(body, 4); parts.push(frame);
+          if(j%16===0) await new Promise(r=>setTimeout(r,0));
+        }
+      }
+      seg.blob = new Blob(parts, {type:'application/octet-stream'});
+    }
+    item.parts = segs.map(s=>({off:s.off, blob:s.blob}));
+    item.partsEnc = encMode;
+  }
+  if(t && t.cancelled) return;
+  if(t && t.wantPause){ setTaskState(id,'paused'); if(st) st.textContent='已暂停，点「继续」重新发送'; return; }
+  const uid = id + '-' + Date.now().toString(36);
+  const q = new URLSearchParams({pin:curPin, name:file.name, dest:$('upDest').value, rel:rel,
+    uid, size:String(file.size), parts:String(segs.length)});
+  if(!encMode) q.set('enc','0');
+  const baseUrl = '/upload?' + q.toString();
+  if(st) st.textContent = '正在发送（'+segs.length+' 通道并行）…';
+  let finalRes = null, failed = null;
+  let lastT = performance.now(), lastLoaded = 0, speed = 0;
+  const upd = ()=>{
+    const loaded = segs.reduce((a,s)=>a+s.loaded,0), now = performance.now();
+    if(now-lastT>=400){ speed=(loaded-lastLoaded)/((now-lastT)/1000); lastT=now; lastLoaded=loaded; }
+    setBar(id, loaded, file.size);
+    if(st) st.textContent = '正在发送 '+Math.min(100,Math.round(loaded/Math.max(1,file.size)*100))+'% · '+segs.length+' 通道并行';
+    if(sp) sp.textContent = fmtSpeed(speed)+' · 剩余 '+fmtEta((file.size-loaded)/Math.max(1,speed));
+  };
+  const reqs = segs.map(seg=>new Promise(resolve=>{
+    const xhr = new XMLHttpRequest(); seg.xhr = xhr;
+    xhr.open('POST', baseUrl + '&off=' + seg.off + '&part=' + seg.idx);
+    xhr.responseType = 'arraybuffer';
+    xhr.upload.onprogress = e=>{ seg.loaded = e.loaded; upd(); };
+    xhr.onload = async ()=>{
+      try{
+        const raw = new Uint8Array(xhr.response);
+        const plain = encMode ? await decBytes(raw) : raw;
+        const j = JSON.parse(new TextDecoder().decode(plain));
+        if(!j.ok) throw new Error(j.err || ('HTTP '+xhr.status));
+        if(j.path) finalRes = j;
+      }catch(e){ if(!failed) failed = e; }
+      resolve();
+    };
+    xhr.onabort = ()=>{ if(!failed) failed = new Error('发送被中断'); resolve(); };
+    xhr.onerror = ()=>{ if(!failed) failed = new Error('连接中断'); resolve(); };
+    xhr.send(seg.blob);
+  }));
+  if(t) t.xhrs = segs.map(s=>s.xhr);
+  await Promise.all(reqs);
+  if(t) t.xhrs = null;
+  if(t && t.cancelled) return;
+  if(t && t.wantPause){ setTaskState(id,'paused'); if(st) st.textContent='已暂停，点「继续」重新发送'; if(sp) sp.textContent=''; return; }
+  if(failed){
+    // 页面被浏览器挂起或链路已断：不判失败，回到队列等重连后自动续传
+    if(!authed || !connected || document.hidden){ requeueUpload(item, failed.message); return; }
+    if(st){ st.textContent='发送失败：'+failed.message; st.style.color='#C9404F'; }
+    setTaskState(id,'failed'); finishCard(id);
+    return;
+  }
+  if(!finalRes){ if(st){ st.textContent='发送完成，但未收到保存结果'; st.style.color='#C9404F'; } setTaskState(id,'failed'); finishCard(id); return; }
+  setBar(id,1,1);
+  if(st){ st.textContent='已保存到被控端：'+(finalRes.path||finalRes.name); st.style.color='#06775A'; }
+  if(sp) sp.textContent='';
+  setTaskState(id,'done'); finishCard(id);
+  if(finalRes.path) addCardBtn(id,'打开文件保存位置',()=>{ if(!authed){ toast('请先连接'); return; } send({t:'open-fs-dir', path:'/sdcard/'+finalRes.path}); toast('已请求打开文件夹'); });
+  toast('已保存到被控端：'+(finalRes.path||finalRes.name));
+}
+/* 专用 HTTP 下载：单独连接边收边解密，带进度/速度/剩余时间。
+   暂停=中断连接但保留已收数据；继续=带 skip=已收完整块数 重新请求，从断点接着收（不重下）。 */
+async function httpDownload(path, name, knownSize){
+  const id = 'd' + (++taskSeq);
+  addCard(id, '↓ ' + name);
+  const st = $('st'+id), sp = $('sp'+id);
+  const t = {kind:'down', state:'active', path}; tasks.set(id, t);
+  const encMode = xferEncOn;   // 下载开始时定下模式，中途切开关不影响本任务
+  const CH = 256*1024, t0 = performance.now();
+  let lastT = t0, lastGot = 0, speed = 0;
+  // ≥2MB 且大小已知：切 3 段并行下载（单条连接常跑不满 WiFi，多连接提速）；小文件/未知大小走单流
+  const segs = [];
+  if(knownSize >= 2*1024*1024){
+    const total = Math.ceil(knownSize/CH), base = Math.floor(total/3), rem = total%3;
+    let off = 0;
+    for(let i=0;i<3;i++){ const n = base + (i<rem?1:0); segs.push({start:off, chunks:n, parts:[], full:0, got:0, done:false, ctl:null}); off += n; }
+  } else {
+    segs.push({start:0, chunks:Infinity, parts:[], full:0, got:0, done:false, ctl:null});
+  }
+  const chanTag = segs.length>1 ? ' · '+segs.length+'通道并行' : '';
+  const totalGot = ()=>segs.reduce((a,s)=>a+s.got,0);
+  const upd = ()=>{
+    const got = totalGot(), now = performance.now();
+    if(now-lastT>=400){ speed=(got-lastGot)/((now-lastT)/1000); lastT=now; lastGot=got; }
+    if(sp) sp.textContent = fmtSpeed(speed) + (knownSize>0 ? ' · 剩余 '+fmtEta((knownSize-got)/Math.max(1,speed)) : '');
+    if(st) st.textContent = knownSize>0 ? ('正在下载 '+Math.min(100,Math.round(got/knownSize*100))+'%'+chanTag) : ('已下载 '+fmtSize(got)+chanTag);
+    if(knownSize>0) setBar(id, got, knownSize);
+  };
+  t.pause = ()=>{ if(t.state!=='active') return; t.pausedFlag = true; segs.forEach(s=>{ if(s.ctl) s.ctl.abort(); }); };
+  t.resume = ()=>{ if(t.state!=='paused') return; t.pausedFlag = false; setTaskState(id,'active'); if(st) st.textContent='正在继续下载…'; segs.filter(s=>!s.done).forEach(runSeg); };
+  t.cancel = ()=>{ t.cancelled = true; segs.forEach(s=>{ if(s.ctl) s.ctl.abort(); }); setTaskState(id,'cancelled'); if(st) st.textContent='已取消'; if(sp) sp.textContent=''; finishCard(id); };
+  wireTaskCtrls(id, t);
+  openTaskPanel(); toast('开始下载：'+name);
+  if(st) st.textContent='正在连接…';
+  function fail(e){
+    if(t.failed || t.cancelled) return;
+    t.failed = true;
+    segs.forEach(s=>{ if(s.ctl) s.ctl.abort(); });
+    if(st){ st.textContent='下载失败：'+e.message; st.style.color='#C9404F'; }
+    setTaskState(id,'failed'); finishCard(id);
+  }
+  function finish(){
+    setBar(id,1,1);
+    saveBlob(new Blob(segs.flatMap(s=>s.parts)), name);
+    if(st){ st.textContent='已下载至主控端下载目录：'+name; st.style.color='#06775A'; }
+    if(sp) sp.textContent=fmtSize(totalGot())+' · 用时 '+((performance.now()-t0)/1000).toFixed(1)+'s';
+    setTaskState(id,'done'); finishCard(id);
+    addCardBtn(id,'保存位置说明',()=>toast('已存到本浏览器的下载目录（按 Ctrl+J 查看）'));
+    toast('文件已下载：'+name);
+  }
+  async function runSeg(seg){
+    seg.ctl = new AbortController();
+    const skip = seg.start + seg.full, left = seg.chunks - seg.full;
+    let url = '/file?pin='+encodeURIComponent(curPin)+'&path='+encodeURIComponent(path);
+    if(skip>0) url += '&skip='+skip;
+    if(isFinite(left)) url += '&count='+left;
+    if(!encMode) url += '&enc=0';
+    try{
+      const resp = await fetch(url, {cache:'no-store', signal:seg.ctl.signal});
+      if(!resp.ok) throw new Error('HTTP '+resp.status);
+      const hn = resp.headers.get('X-File-Name'); if(hn){ try{ name = decodeURIComponent(hn); }catch(_){} }
+      const hs = parseInt(resp.headers.get('X-File-Size')||'0',10); if(hs>0) knownSize = hs;
+      const reader = resp.body.getReader();
+      let buf = new Uint8Array(0);
+      while(true){
+        const r = await reader.read(); if(r.done) break;
+        const nb = new Uint8Array(buf.length + r.value.length); nb.set(buf); nb.set(r.value, buf.length); buf = nb;
+        while(buf.length>=4){
+          const len = ((buf[0]<<24)|(buf[1]<<16)|(buf[2]<<8)|buf[3])>>>0;
+          if(buf.length < 4+len) break;
+          const plain = encMode ? await decBytes(buf.subarray(4, 4+len)) : buf.slice(4, 4+len);
+          buf = buf.subarray(4+len);
+          seg.parts.push(plain); seg.got += plain.length;
+          if(plain.length === CH) seg.full++;   // 完整块计数=续传跳块数（末块不满不计）
+        }
+        upd();
+      }
+      seg.done = true;
+      if(segs.every(s=>s.done)) finish();
+    }catch(e){
+      if(t.cancelled || t.failed) return;
+      if(t.pausedFlag){
+        if(t.state!=='paused'){ setTaskState(id,'paused'); if(st) st.textContent='已暂停（已下载 '+fmtSize(totalGot())+'），点「继续」接着下载'; if(sp) sp.textContent=''; }
+        return;
+      }
+      fail(e);
+    }
+  }
+  await Promise.all(segs.map(runSeg));
+}
+const MAX_UPLOAD_RETRY = 6;
+/** 连接中断导致的上传不判失败：退回队列，重连后自动从头发送（已加密的分片缓存可复用，不必重新加密） */
+function requeueUpload(item, why){
+  const t = tasks.get(item.id);
+  if(!t || t.cancelled) return false;
+  const st = $('st'+item.id), sp = $('sp'+item.id);
+  if(t.wantPause){
+    setTaskState(item.id,'paused');
+    if(st) st.textContent = '已暂停，点「继续」重新发送';
+    if(sp) sp.textContent = '';
+    return true;
+  }
+  t.retries = (t.retries || 0) + 1;
+  if(userEnded || endNotified || t.retries > MAX_UPLOAD_RETRY){
+    if(st){
+      st.textContent = (userEnded || endNotified) ? '会话已结束，上传已取消' : '发送失败：'+(why || '连接中断');
+      st.style.color = '#C9404F';
+    }
+    setTaskState(item.id,'failed'); finishCard(item.id);
+    return true;
+  }
+  if(!upQueue.includes(item)) upQueue.unshift(item);
+  setTaskState(item.id,'queued');
+  if(st){ st.textContent = '连接中断，已重新排队，连上后自动继续'; st.style.color = ''; }
+  if(sp) sp.textContent = '';
+  setBar(item.id, 0, 1);
+  return true;
+}
+/** 断线时：没发完的任务重新排队；已发完只等回执的保留，重连后补发 file-up-end 让被控端重放结果 */
+function abandonInterruptedUploads(){
+  for(const [id, j] of [...upJobs]){
+    if(j.sentAll) continue;
+    upJobs.delete(id);
+    if(j.item){ requeueUpload(j.item, '连接中断'); continue; }
+    const cid = protoCard.get(id) ?? id;
+    const s = $('st'+cid);
+    if(s){ s.textContent = '连接中断，上传已取消，请重连后重新发送'; s.style.color = '#C9404F'; }
+    setTaskState(cid,'failed'); finishCard(cid);
+  }
+}
+/** 重连成功（hello → ready）后：补发未确认的结束帧，继续排队中的文件 */
+function resumeUploads(){
+  for(const id of [...pendingEnds]) send({t:'file-up-end', id});
+  pumpUploads();
+}
+async function uploadOne(item){
+  const file = item.file, cid = item.id;
+  const t = tasks.get(cid);
+  const gen = wsGen;
+  const id = ((Date.now() & 0xffff) << 6) | (upSeq++ & 0x3f);
+  protoCard.set(id, cid);
+  upJobs.set(id, {file, total:file.size, sent:0, sentAll:false, item});
+  setTaskState(cid,'active');
+  const st = $('st'+cid);
+  if(st) st.textContent = '准备发送…';
+  send({t:'file-up-meta', id, name:file.name, size:file.size, dest:$('upDest').value});
+  const CH = 256*1024;
+  for(let off=0; off<file.size; off+=CH){
+    if(t && t.cancelled){ upJobs.delete(id); send({t:'file-up-end', id}); return; }
+    while(gen===wsGen && ws && ws.readyState===1 && ws.bufferedAmount > 4*1024*1024)
+      await new Promise(r=>setTimeout(r,40));
+    if(gen!==wsGen || !authed || !ws || ws.readyState!==1){
+      upJobs.delete(id);
+      requeueUpload(item, '连接中断');
+      return;
+    }
+    let buf;
+    try{ buf = new Uint8Array(await file.slice(off, off+CH).arrayBuffer()); }
+    catch(e){
+      if(st) st.textContent = '读取文件失败：' + e.message;
+      upJobs.delete(id); send({t:'file-up-end', id}); setTaskState(cid,'failed'); finishCard(cid); return;
+    }
+    const frame = new Uint8Array(buf.length+1); frame[0]=0x02; frame.set(buf,1);
+    await sendBinary(frame);
+    const j = upJobs.get(id); if(!j) return;
+    j.sent = off + buf.length;
+    setBar(cid, j.sent, file.size);
+    if(st) st.textContent = '正在发送 ' + Math.min(100, Math.round(j.sent/file.size*100)) + '%';
+  }
+  const j = upJobs.get(id);
+  if(!j) return;
+  j.sentAll = true;
+  if(st) st.textContent = '已发送，等待被控端保存…';
+  pendingEnds.add(id);
+  send({t:'file-up-end', id});
+  // 兜底：20 秒没回执也不删任务、不报失败——文件可能已经保存，只是回执丢了；
+  // 重连后会自动补发 file-up-end，被控端收到重复结束帧会重放上次的保存结果
+  setTimeout(()=>{
+    if(!upJobs.has(id)) return;
+    const s=$('st'+cid);
+    if(s && s.style.color !== 'rgb(127, 220, 160)')
+      s.textContent='已发送，等待被控端回执；若被控端「下载/随手控」中已有该文件即保存成功';
+  }, 20000);
+}
+$('btnDl').onclick = ()=>{ if(authed) send({t:'file-dl-req'}); else toast('请先连接'); };
+/* 主控端→被控端剪贴板：粘贴事件直接拿 clipboardData（http 下也可用，无需 clipboard API），自动同步 */
+$('clipOut').addEventListener('paste', e=>{
+  if(!authed) return;
+  const s=((e.clipboardData||window.clipboardData).getData('text')||'').trim();
+  if(s){ rememberPcClip(s); send({t:'clip-set', s}); toast('已同步到手机剪贴板'); }
+});
+/* ===== 被控端剪贴板记录：最近 20 条，点选即复制到主控端 ===== */
+const CLIP_HIST_MAX = 20;
+let clipHist = [];
+try {
+  const v = JSON.parse(localStorage.getItem('pcClipHist')||'[]');
+  if(Array.isArray(v)) clipHist = v.filter(x => x && typeof x.s==='string' && x.s).slice(0, CLIP_HIST_MAX);
+} catch(_) {}
+function saveClipHist(){ try { localStorage.setItem('pcClipHist', JSON.stringify(clipHist)); } catch(_) {} }
+function fmtClipTime(t){
+  const d = new Date(t), p = n => String(n).padStart(2,'0');
+  return p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+function oneLine(s){ return s.replace(/\s+/g,' ').trim().slice(0, 80); }
+function renderClipHist(){
+  const box = $('clipHist');
+  box.textContent = '';
+  if(!clipHist.length){
+    const e = document.createElement('div'); e.className='empty';
+    e.textContent = '暂无记录：手机复制后将自动显示在此处';
+    box.appendChild(e);
+  } else {
+    for(const it of clipHist){
+      const row = document.createElement('div'); row.className='hi';
+      const tm = document.createElement('small'); tm.textContent = fmtClipTime(it.t);
+      const tx = document.createElement('span'); tx.textContent = oneLine(it.s);
+      row.appendChild(tm); row.appendChild(tx);
+      row.onclick = ()=> useClipItem(it.s);
+      box.appendChild(row);
+    }
+  }
+  const more = document.createElement('div'); more.className='more';
+  more.textContent = '重新读取手机当前剪贴板';
+  more.onclick = ()=>{ if(authed) send({t:'clip-get'}); else toast('请先连接'); };
+  box.appendChild(more);
+}
+function pushClipHist(s){
+  if(!s) return;
+  clipHist = clipHist.filter(x => x.s !== s);
+  clipHist.unshift({s, t: Date.now()});
+  if(clipHist.length > CLIP_HIST_MAX) clipHist.length = CLIP_HIST_MAX;
+  saveClipHist();
+  if($('clipHist').classList.contains('open')) renderClipHist();
+}
+function useClipItem(s){
+  $('clipIn').value = s;
+  copyText(s).then(ok=>{
+    if(ok){ rememberPcClip(s); toast('已复制到主控端剪贴板'); }
+    else { const ci=$('clipIn'); ci.focus(); ci.select(); }
+  });
+}
+$('btnClipGet').onclick = ()=>{
+  const box = $('clipHist');
+  if(box.classList.toggle('open')){
+    renderClipHist();
+    // 每次打开都静默拉一次当前剪贴板，最新一条会自动出现在列表顶部（不写入主控端剪贴板）
+    if(authed) send({t:'clip-get', peek:1});
+  }
+};
+/* 用户在选中框内按 Ctrl+C 后给出「已复制」确认 */
+$('clipIn').addEventListener('copy', ()=> toast('已复制到主控端剪贴板'));
+
+/* ================= misc ================= */
+/* 触屏主控（手机/平板）：显示底部「输入」按钮，触摸画面时自动调出本机输入法 */
+const isTouch = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
+if(isTouch){ document.body.classList.add('touch'); }
+const isPop = (window.name === 'pcwin');
+if(isPop){ document.body.classList.add('pop'); }
+/* 独立窗口：顶/底栏默认完全隐藏，鼠标贴到窗口最上/最下边缘(8px)才浮现，闲置 2s 收起。
+   触发区不能宽：被控端导航栏/手势区就在画面底部，宽触发区会在点导航时误弹按键条挡住它 */
+let popUiTimer = null;
+function popShowUi(){
+  if(!isPop) return;
+  document.body.classList.add('ui');
+  clearTimeout(popUiTimer);
+  popUiTimer = setTimeout(()=>document.body.classList.remove('ui'), 2000);
+}
+function popEdgeUi(e){
+  if(!isPop) return;
+  const y = e.clientY;
+  if(y < 8 || y > window.innerHeight - 8) popShowUi();
+}
+/* 独立窗口横竖屏跟随：手机旋转时把窗口宽高对调（补偿浏览器地址栏高度），整体大小不变，像把手机转 90°。
+   拖边拖角仍完全自由——只在方向真正翻转那一下对调，切画质/用户拖拽都不动窗口。
+   注：浏览器弹窗必带地址栏（安全限制，网页去不掉）。 */
+let popLastLand = null;
+function popOrient(){
+  if(!isPop) return;
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if(!vw || !vh) return;
+  const land = vw > vh;
+  if(popLastLand === null){ popLastLand = land; return; }   // 首帧只记方向，不动刚开好的窗口
+  if(land === popLastLand) return;   // 方向没变（切画质/分辨率）不动用户拖好的窗口
+  popLastLand = land;
+  try{
+    const chromeW = Math.max(0, window.outerWidth - window.innerWidth);
+    const chromeH = Math.max(0, window.outerHeight - window.innerHeight);   // 地址栏/标题栏高度
+    let nw = window.innerHeight + chromeW, nh = window.innerWidth + chromeH;   // 内容区宽高对调再补回边框
+    const aw = screen.availWidth || 1280, ah = screen.availHeight || 900;
+    const k = Math.min(1, aw / nw, ah / nh);   // 夹取到屏幕可用范围
+    window.resizeTo(Math.round(nw * k), Math.round(nh * k));
+  }catch(_){}
+}
+if(isPop){
+  window.addEventListener('pointermove', popEdgeUi, {passive:true});
+  window.addEventListener('pointerdown', popEdgeUi, {passive:true});
+  video.addEventListener('resize', popOrient);
+}
+
+/* ================= 独立窗口（桌面端） ================= */
+// 浏览器标签页没法变成无边框窗口：这里开一个按手机比例的弹出窗口，用户可以像小米妙享那样
+// 拖动边角自由缩放，画面跟着窗口一起缩放；原来的标签页会主动断开，避免两个主控抢同一条流。
+function openStandaloneWindow(){
+  if(!authed){ toast('请先连接再打开独立窗口'); return; }
+  if(location.protocol === 'file:'){ toast('请通过 http 地址打开主控页后再使用独立窗口'); return; }
+  const vw = video.videoWidth || 9, vh = video.videoHeight || 20;
+  const aspect = vw / vh;
+  const bars = 0;   // 独立窗口内顶/底栏是悬浮自动隐藏层，画面铺满窗口，不再为工具栏预留高度
+  const availW = screen.availWidth || 1280, availH = screen.availHeight || 900;
+  const contentH = Math.max(420, Math.min(availH - bars - 140, 1180));
+  const contentW = Math.round(contentH * aspect);
+  const winW = Math.max(320, contentW + 22);
+  const winH = contentH + bars + 130;
+  const left = Math.max(0, Math.round((availW - winW) / 2));
+  const top = Math.max(0, Math.round((availH - winH) / 2));
+  // PIN 不进 URL（避免地址栏/历史记录明文暴露）：新窗口与本页同源，连接成功时 PIN 已存
+  // localStorage，新窗口启动自动读取并连接；中继模式 URL 只带房间号（房间号不是凭据）
+  const url = location.origin + location.pathname + (isRelay ? '#room=' + encodeURIComponent(roomId) : '');
+  const w = window.open('', 'pcwin',
+    'popup=yes,resizable=yes,width=' + winW + ',height=' + winH + ',left=' + left + ',top=' + top);
+  if(!w){ toast('浏览器拦截了独立窗口，请允许本站弹出窗口后重试'); return; }
+  try{ w.location.replace(url); }catch(_){ w.location.href = url; }
+  try{ w.focus(); }catch(_){}
+  // 等浏览器把标题栏/地址栏算出来后再校正一次，让内容区正好是手机比例
+  setTimeout(()=>{
+    try{
+      if(w.closed) return;
+      const chromeW = w.outerWidth - w.innerWidth, chromeH = w.outerHeight - w.innerHeight;
+      if(chromeW >= 0 && chromeH > 0) w.resizeTo(contentW + chromeW, contentH + bars + chromeH);
+    }catch(_){}
+  }, 1500);
+  userEnded = true;   // 阻止本页 onclose 自动重连
+  closeStream();
+  clearInterval(pingTimer); clearInterval(statTimer);
+  try{ ws && ws.close(); }catch(_){}
+  ws = null; authed = connected = false;
+  overlay('已在新窗口打开', '请使用新开的窗口操作，本页可以关闭。<br>新窗口按手机比例打开，拖动窗口边角即可缩放。', false);
+}
+if(!isTouch && window.name !== 'pcwin' && !window.opener){
+  $('btnWin').style.display = 'inline-flex';
+  $('btnWin').onclick = openStandaloneWindow;
+}
+$('btnKb').onclick = ()=>{
+  if(!authed){ toast('请先连接被控端'); return; }
+  focusKb();
+};
+/* 手机主控全屏跟随：浏览器不允许网页凭空全屏/旋转屏幕，点「全屏」进入全屏后才按被控画面方向锁定；
+   全屏内被控横竖屏变化时自动重锁，退出全屏解锁——让被控的全屏画面在主控上也铺满成全屏模样 */
+function fsLockOrient(){
+  const vw = video.videoWidth, vh = video.videoHeight;
+  const want = (vw && vh && vw > vh) ? 'landscape' : 'portrait';
+  try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock(want).catch(()=>{}); }catch(_){}
+}
+if(isTouch){
+  $('btnFs').onclick = async ()=>{
+    if(!authed){ toast('请先连接被控端'); return; }
+    try{
+      if(!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    }catch(_){ toast('浏览器拒绝全屏，请点一下画面后重试'); }
+    fsLockOrient();
+  };
+  document.addEventListener('fullscreenchange', ()=>{
+    if(document.fullscreenElement) fsLockOrient();
+    else { try{ if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); }catch(_){} }
+  });
+  video.addEventListener('resize', ()=>{ if(document.fullscreenElement) fsLockOrient(); });
+}
+$('connBtn').onclick = ()=> connect(false);
+$('pinInput').addEventListener('keydown', e=>{ if(e.key==='Enter') connect(); });
+function reconnectNow(){
+  if(!hadSession || authed || userEnded || endNotified) return;
+  if(ws && (ws.readyState === 0 || ws.readyState === 1)) return;   // 正在握手/已连上，交给原有逻辑
+  clearTimeout(reconnectTimer); reconnectTimer = null;
+  reconnectWhenVisible = false;
+  reconnectTry = 0;
+  connect(true);
+}
+/* 网络恢复、窗口重新聚焦：不必等下一次定时重试，立刻续上 */
+window.addEventListener('online', reconnectNow);
+window.addEventListener('focus', reconnectNow);
+/* 主控切回前台：手机浏览器把页面挂到后台会掐断 WS，回来时立即续上，不用刷新 */
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) return;
+  lastRxAt = performance.now();
+  if(userEnded || endNotified) return;
+  // 切回前台立即恢复：后台期间浏览器挂起解码，6 秒卡死检测会误判并整条重建（很慢）。
+  // 复位检测基准 + 直接追到缓冲最新帧 + 要一个关键帧，画面秒恢复，不等看门狗/自动恢复
+  lastDecodedAt = performance.now(); lastFrameAt = 0; lastJump = 0;
+  try{
+    if(video.buffered && video.buffered.length){
+      video.currentTime = video.buffered.end(video.buffered.length-1) - 0.02;
+      video.playbackRate = 1;
+    }
+  }catch(_){}
+  if(authed && connected) send({t:'kf'});
+  kickVideoPlay();
+  if(ws && ws.readyState === 1 && authed){ send({t:'ping', ts:performance.now()}); return; }
+  if(ws && ws.readyState === 0 && !authed) return;   // 正在握手，交给原有超时/重连
+  if(hadSession){
+    clearTimeout(reconnectTimer); reconnectTimer = null;
+    reconnectWhenVisible = false;
+    reconnectTry = 0;
+    connect(true);
+  }
+});
+$('btnEnd').onclick = ()=>{ if(authed){ userEnded = true; send({t:'end'}); closeStream(); toast('已请求被控端结束会话'); } else toast('未连接'); };
+$('qualitySel').onchange = e => {
+  if(!authed) return;
+  showSwitching();
+  send({t:'quality', preset:e.target.value});   // 被控端切换后广播确认，所有主控保持一致
+};
+
+/* PIN 来源优先级：链接 #片段 > 链接 ?参数 > 本机上次连成功的记录。
+   二维码同时带 ?pin= 和 #pin=：部分扫码器会把 # 后面的内容丢掉，查询参数仍能带上；
+   记住上次的 PIN 后，直接从书签/地址栏打开同一地址也能自动连上（PIN 错误会清掉记录）。 */
+(function(){
+  const q = new URLSearchParams(location.search);
+  const h = new URLSearchParams(location.hash.slice(1));
+  const room = h.get('room') || q.get('room') || '';
+  if(room){ isRelay = true; roomId = room; }
+  updateXferUi();
+  let pin = h.get('pin') || q.get('pin') || '';
+  if(!pin){ try{ pin = localStorage.getItem('pcPin:'+location.host) || ''; }catch(_){} }
+  if(/^\d{6}$/.test(pin)){ $('pinInput').value = pin; setTimeout(()=>connect(false), 300); }
+  if(location.protocol==='file:') $('wsAddr').style.display='inline-block';
+})();
+</script>
+</body>
+</html>

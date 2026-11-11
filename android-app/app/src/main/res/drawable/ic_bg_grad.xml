@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <!-- 兜底底色：与图标同一套渐变（上青 #2CC6FD → 下深蓝 #0B4BEE）。
+         主图本身铺满 108dp 安全区，这层只在极少数裁切形状下露出边缘。 -->
+    <gradient
+        android:angle="270"
+        android:centerColor="#1170FE"
+        android:endColor="#0B4BEE"
+        android:startColor="#2CC6FD"
+        android:type="linear" />
+</shape>

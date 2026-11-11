@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">随手控</string>
+    <string name="ime_name">随手控输入法（远控）</string>
+    <string name="acc_desc">随手控的无障碍服务：用于在远控会话期间向手机注入点击、滑动等触控操作。仅在会话进行时工作，会话结束可自动关闭。</string>
+    <string name="notif_channel">远控会话</string>
+    <string name="notif_title">随手控会话进行中</string>
+    <string name="notif_stop">停止</string>
+    <string name="pick_channel">文件选择</string>
+    <string name="pick_title">选择要发送的文件</string>
+    <string name="pick_text">主控端请求下载文件，点击此处打开文件选择器</string>
+    <string name="open_dir_title">打开文件保存位置</string>
+</resources>

@@ -1,0 +1,15 @@
+{
+  "name": "pocketcontrol-relay",
+  "version": "1.0.0",
+  "description": "随手控中继服务器：跨互联网转发被控端与主控端之间的加密流量",
+  "main": "relay.js",
+  "scripts": {
+    "start": "node relay.js"
+  },
+  "dependencies": {
+    "ws": "^8.22.1"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

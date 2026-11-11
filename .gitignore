@@ -1,0 +1,34 @@
+# 构建产物与本机配置
+android-app/.gradle/
+android-app/.kotlin/
+android-app/build/
+android-app/app/build/
+local.properties
+keystore.properties
+*.keystore
+*.jks
+
+# 本机工具链与发布包（体积大、含个人路径，不入库）
+tools/
+deliverables/
+*.apk
+*.aab
+*.zip
+*.h264
+e2e/assets/
+
+# 内部工作目录
+.zwork/
+.codex/
+.impeccable/
+
+# Node 依赖（部署时 npm install 即可）
+relay-server/node_modules/
+
+# 编辑器与系统文件
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
