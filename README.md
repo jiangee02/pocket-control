@@ -22,7 +22,7 @@
 
 ## 环境要求
 
-- **被控手机**：Android 8.0 及以上，主要适配小米澎湃 OS（HyperOS），其他系统未全面验证
+- **被控手机**：Android 8.0 及以上
 - **主控端**：支持 Media Source Extensions 的现代浏览器，建议 Chrome / Edge
 - **中继**：Node.js 16 及以上（仅自建中继时需要）
 
