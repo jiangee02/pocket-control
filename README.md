@@ -6,7 +6,7 @@
 
 主控端免安装、免账号；手机端只在会话期间开放服务，结束后立即关闭并还原设置。
 
-![被控端：开始会话后显示访问地址、PIN 和二维码](docs/screenshot.jpg)
+<img src="docs/screenshot.jpg" width="380" alt="被控端：开始会话后显示访问地址、PIN 和二维码">
 
 ## 功能
 
